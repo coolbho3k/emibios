@@ -18,7 +18,7 @@ DenSinH.
 - Most SWIs are accurate in both result and register/flag side effects
 - Many SWIs are tuned to match the retail BIOS in timing for most inputs
 - Some SWIs are adjusted for timing under bus/IRQ/DMA contention where it was observed to affect accuracy for tested commercial games
-- Multiboot (Normal/Multiplay sender and receiver, JoyBus receiver), tested on FPGA hardware with real link cables as well as mGBA/Dolphin.
+- Multiboot (Normal/Multiplay sender and receiver, JoyBus receiver), tested on FPGA hardware and GameCube with real link cables as well as mGBA/Dolphin.
 - Sound functionality used in commercial games (as far as I know, let me know if I missed anything or you find any bugs) is implemented, including Digital Eclipse / a few Japanese titles
 - All-new boot screen, featuring a readout of the game name/code, plus a header debug screen if you hold B or if the cart contacts are dirty
 
