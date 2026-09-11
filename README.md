@@ -24,7 +24,7 @@ DenSinH.
 
 ### Running
 
-Download the [latest release](https://github.com/coolbho3k/emibios/releases) and load it into your favorite GBA emulator!
+Download the [latest release](https://github.com/coolbho3k/emibios/releases/latest) and load it into your favorite GBA emulator!
 
 It takes the place of the official `gba_bios.bin`.
 
