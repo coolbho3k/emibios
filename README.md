@@ -24,7 +24,9 @@ DenSinH.
 
 ### Running
 
-Download the latest release and load it into your favorite GBA emulator!
+Download the [latest release](https://github.com/coolbho3k/emibios/releases) and load it into your favorite GBA emulator!
+
+It takes the place of the official `gba_bios.bin`.
 
 emibios will probably also run on official silicon if you can manage to figure out how, but as far
 as I know, this is impossible (let me know if you own debug hardware that can do this or know of a
