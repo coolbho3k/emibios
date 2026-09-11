@@ -1,4 +1,4 @@
-# emibios
+# emibios: a GBA BIOS replacement
 
 emibios is a research GBA BIOS replacement that aims to be as accurate as possible when running
 commercial games while being freely redistributable. It is not intended to contain, or use as
