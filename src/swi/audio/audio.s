@@ -1,0 +1,11 @@
+@ SPDX-License-Identifier: GPL-3.0-or-later
+#include "swi/audio/sound_bias.s"
+#include "swi/audio/sound_driver_init.s"
+#include "swi/audio/sound_driver_vsync.s"
+#include "swi/audio/midi_key2freq.s"
+#include "swi/audio/music_player_fade_out.s"
+#include "swi/audio/sound_driver_vsync_toggle.s"
+#include "swi/audio/sound_get_jump_list.s"
+#include "swi/audio/sound_channel_clear.s"
+#include "swi/audio/sound_driver_main.s"
+#include "swi/audio/sound_driver_mode.s"

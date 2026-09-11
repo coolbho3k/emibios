@@ -1,0 +1,6 @@
+zig-out/
+.zig-cache/
+zig-pkg/
+bios.bin
+*.o
+*.elf

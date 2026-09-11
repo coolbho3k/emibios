@@ -1,0 +1,36 @@
+.{
+    .name = .emibios,
+    .version = "0.1.0",
+    .fingerprint = 0x99ea2d4d8626f1b1,
+    .minimum_zig_version = "0.16.0",
+    .dependencies = .{
+        .zigimg = .{
+            .url = "git+https://github.com/zigimg/zigimg#096115a3eeae1a4c477496d575f1f1f74865387c",
+            .hash = "zigimg-0.1.0-8_eo2mHBFwDLhWjXriR17_b7VF6qML1f98Xokp7ZZbop",
+        },
+        .gbahawk = .{
+            .url = "https://github.com/alyosha-tas/GBAHawk/archive/4f68caaede8df59eac50efa56111ac6474c5379e.tar.gz",
+            .hash = "N-V-__8AANKxbQYHBoRe461r8z3-fJOP81laDGVTfmPaIV4p",
+            .lazy = true,
+        },
+        .mesence = .{
+            .url = "https://github.com/nesdev-org/MesenCE/archive/40335ce7359168559dc1f3fc99445230b9041fed.tar.gz",
+            .hash = "N-V-__8AAIAj6QDh_7EmsYa-xKxrpNJk_-OvPugPNgDxawIE",
+            .lazy = true,
+        },
+    },
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "assets",
+        "rom",
+        "src",
+        "tests",
+        "tools",
+        "bios.sha256",
+        "README.md",
+        "boot.webp",
+        "multiboot.webp",
+        "LICENSE",
+    },
+}
