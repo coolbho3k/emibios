@@ -102,7 +102,7 @@ pub fn main(init: std.process.Init) !void {
 
     const cwd = Io.Dir.cwd();
     const elf = try cwd.readFileAlloc(io, "zig-out/bin/bios.elf", gpa, .limited(4 * 1024 * 1024));
-    const bin = try cwd.readFileAlloc(io, "zig-out/bin/bios.bin", gpa, .limited(2 * CAP));
+    const bin = try cwd.readFileAlloc(io, "zig-out/bin/gba_bios.bin", gpa, .limited(2 * CAP));
     const src = try cwd.readFileAlloc(io, "src/swi/swi_table.s", gpa, .limited(8 * 1024 * 1024));
 
     const syms = try parseElf(gpa, elf);

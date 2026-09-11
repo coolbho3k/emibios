@@ -14,7 +14,7 @@ pub fn main(init: std.process.Init) !void {
     const args = try init.minimal.args.toSlice(gpa);
     var ew: Io.File.Writer = .init(.stderr(), io, &.{});
     if (args.len < 3) {
-        try ew.interface.print("usage: probe <bios.bin> <rom.gba>\n", .{});
+        try ew.interface.print("usage: probe <gba_bios.bin> <rom.gba>\n", .{});
         try ew.interface.flush();
         std.process.exit(2);
     }

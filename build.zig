@@ -6,7 +6,7 @@ const manifest = @import("tools/test_manifest.zig");
 pub fn build(b: *std.Build) void {
     const zig = b.graph.zig_exe;
 
-    // recal.zig detects BIOS changes by hashing the built bios.bin against bios.sha256.
+    // recal.zig detects BIOS changes by hashing the built gba_bios.bin against bios.sha256.
     const no_recal = b.option(bool, "no-recal", "skip the handoff gate/recal") orelse false;
 
     // -Dlayout-perturb=N shifts everything below the IRQ handler down by N bytes.
@@ -67,7 +67,7 @@ pub fn build(b: *std.Build) void {
 
     // The linker script fixes the BIOS layout and objcopy extracts the visible 16 KiB image.
     const bios = linkBin(b, zig, b.path("src/link.ld"), obj, "bios");
-    const inst = b.addInstallBinFile(bios.bin, "bios.bin");
+    const inst = b.addInstallBinFile(bios.bin, "gba_bios.bin");
     const elf_inst = b.addInstallBinFile(bios.elf, "bios.elf"); // the report tool reads symbols from it
     b.getInstallStep().dependOn(&inst.step);
     b.getInstallStep().dependOn(&elf_inst.step);
@@ -89,7 +89,7 @@ pub fn build(b: *std.Build) void {
     }
 
     const verify = b.step("verify", "Build the BIOS and check its SHA-256");
-    const v = b.addSystemCommand(&.{ zig, "run", "tools/verify.zig", "--", "zig-out/bin/bios.bin", "bios.sha256" });
+    const v = b.addSystemCommand(&.{ zig, "run", "tools/verify.zig", "--", "zig-out/bin/gba_bios.bin", "bios.sha256" });
     v.setCwd(b.path("."));
     // Skip the recalibration gate when checking the committed hash.
     v.step.dependOn(&inst.step);
@@ -224,8 +224,8 @@ pub fn build(b: *std.Build) void {
         const layout_host = b.createModule(.{ .root_source_file = b.path("rom/layout.zig"), .target = b.graph.host, .optimize = .Debug });
 
         const test_opts = b.addOptions();
-        const bios_opt = b.option([]const u8, "bios", "Path to a BIOS binary to test (default: the built zig-out/bin/bios.bin)");
-        test_opts.addOption([]const u8, "bios_path", bios_opt orelse "zig-out/bin/bios.bin");
+        const bios_opt = b.option([]const u8, "bios", "Path to a BIOS binary to test (default: the built zig-out/bin/gba_bios.bin)");
+        test_opts.addOption([]const u8, "bios_path", bios_opt orelse "zig-out/bin/gba_bios.bin");
         test_opts.addOption([]const u8, "emu", @tagName(emu_kind));
         test_opts.addOption(u64, "handoff_cycle", handoff_target);
         for (manifest.swi_tests) |t| for (t.swis) |s| test_opts.addOptionPath(s.opt, swiTestRom(b, zig, rgba, protocol_arm, arm, s.num));

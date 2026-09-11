@@ -4,7 +4,7 @@ const std = @import("std");
 const Io = std.Io;
 
 const CAL = "src/calibration.s";
-const BIOS = "zig-out/bin/bios.bin";
+const BIOS = "zig-out/bin/gba_bios.bin";
 const SHA = "bios.sha256";
 const CYC_PER_ITER: i64 = 4; // FINAL_BURN_PAD step. FINAL_FINE burns one cycle per nop
 const FRAME_CYC: i64 = 228 * 1232; // one GBA frame (228 scanlines x 1232 cyc): the BOOT_FRAME_TRIM step
@@ -72,7 +72,7 @@ fn writeCal(gpa: std.mem.Allocator, io: Io, burn: i64, fine: i64, trim: i64) !vo
 
 fn writeSha(gpa: std.mem.Allocator, io: Io) !void {
     const hex = try sha256Hex(gpa, io);
-    const text = try std.fmt.allocPrint(gpa, "{s}  bios.bin\n", .{hex});
+    const text = try std.fmt.allocPrint(gpa, "{s}  gba_bios.bin\n", .{hex});
     try Io.Dir.cwd().writeFile(io, .{ .sub_path = SHA, .data = text });
 }
 

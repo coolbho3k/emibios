@@ -34,7 +34,7 @@ way to do this on any retail hardware).
 
 [Zig](https://ziglang.org) 0.16 is the toolchain and the only build prerequisite needed.
 
-    zig build         # builds zig-out/bin/bios.bin
+    zig build         # builds zig-out/bin/gba_bios.bin
 
 Unit tests assert behavior, side effects, and timing of many SWIs:
 
