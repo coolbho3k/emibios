@@ -74,7 +74,7 @@ firewall them against ingesting proprietary code or binaries into their context.
 - [GBAHawk](https://github.com/alyosha-tas/GBAHawk) (alyosha) - primary development target, test runner
 - [MesenCE](https://github.com/nesdev-org/MesenCE) - secondary development target, test runner
 - [mGBA](https://mgba.io/) (endrift) - secondary development target, reference code, Multiboot/JoyBoot development target
-- [NanoBoyAdvance](https://codeberg.org/nba-emu/NanoBoyAdvance) (Fleroviux) - secondary development target
+- [NanoBoyAdvance](https://codeberg.org/nba-emu/NanoBoyAdvance) (Gloria Goertz, Fleroviux) - secondary development target
 - [Fonts for GB Studio](https://jeremyoduber.itch.io/fonts-for-gb-studio) (Jeremy Oduber) - boot screen font
 - [jbus](https://github.com/AxioDL/jbus) - Multiboot/JoyBus reference
 - [Dolphin Emulator](https://dolphin-emu.org/) - used as sender to develop JoyBoot receiver code
