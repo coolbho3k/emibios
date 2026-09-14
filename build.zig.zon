@@ -9,13 +9,13 @@
             .hash = "zigimg-0.1.0-8_eo2mHBFwDLhWjXriR17_b7VF6qML1f98Xokp7ZZbop",
         },
         .gbahawk = .{
-            .url = "https://github.com/alyosha-tas/GBAHawk/archive/4f68caaede8df59eac50efa56111ac6474c5379e.tar.gz",
-            .hash = "N-V-__8AANKxbQYHBoRe461r8z3-fJOP81laDGVTfmPaIV4p",
+            .url = "https://github.com/alyosha-tas/GBAHawk/archive/b3ed4943b350eae620475fd1c65f6fe577dcd20e.tar.gz",
+            .hash = "N-V-__8AAM5jSgYYf90fXLqtPpMNHwWmmk_mu4wPyc4u1MMp",
             .lazy = true,
         },
         .mesence = .{
-            .url = "https://github.com/nesdev-org/MesenCE/archive/40335ce7359168559dc1f3fc99445230b9041fed.tar.gz",
-            .hash = "N-V-__8AAIAj6QDh_7EmsYa-xKxrpNJk_-OvPugPNgDxawIE",
+            .url = "https://github.com/nesdev-org/MesenCE/archive/20f497c9620a7f4e55b7752e1d22734f9d7492fa.tar.gz",
+            .hash = "N-V-__8AABA76gBy4A90MZCxYYL_PkFh9hxMyXpoK7y2QRWP",
             .lazy = true,
         },
     },
