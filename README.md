@@ -5,7 +5,7 @@ commercial games while being freely redistributable. It is not intended to conta
 reference, any proprietary code directly derived from the retail BIOS. Instead, we rely on observing
 and matching the behavior of the retail BIOS.
 
-Originally based on [Cult-of-GBA BIOS](https://github.com/Cult-of-GBA/BIOS/) by Fleroviux and
+Originally based on [Cult-of-GBA BIOS](https://github.com/Cult-of-GBA/BIOS/) by fleroviux and
 DenSinH.
 
 ![emibios boot sequence](boot.webp) ![emibios multiboot download](multiboot.webp)
@@ -70,11 +70,11 @@ firewall them against ingesting proprietary code or binaries into their context.
 
 ### Credits
 
-- [Cult-of-GBA](https://github.com/Cult-of-GBA/BIOS/) (Fleroviux, DenSinH) - original open BIOS basis for this project
+- [Cult-of-GBA](https://github.com/Cult-of-GBA/BIOS/) (fleroviux, DenSinH) - original open BIOS basis for this project
 - [GBAHawk](https://github.com/alyosha-tas/GBAHawk) (alyosha) - primary development target, test runner
 - [MesenCE](https://github.com/nesdev-org/MesenCE) - secondary development target, test runner
 - [mGBA](https://mgba.io/) (endrift) - secondary development target, reference code, Multiboot/JoyBoot development target
-- [NanoBoyAdvance](https://codeberg.org/nba-emu/NanoBoyAdvance) (Gloria Goertz, Fleroviux) - secondary development target
+- [NanoBoyAdvance](https://codeberg.org/nba-emu/NanoBoyAdvance) (Gloria Goertz, fleroviux) - secondary development target
 - [Fonts for GB Studio](https://jeremyoduber.itch.io/fonts-for-gb-studio) (Jeremy Oduber) - boot screen font
 - [jbus](https://github.com/AxioDL/jbus) - Multiboot/JoyBus reference
 - [Dolphin Emulator](https://dolphin-emu.org/) - used as sender to develop JoyBoot receiver code
