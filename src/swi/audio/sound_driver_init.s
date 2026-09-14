@@ -40,7 +40,7 @@ swi_SoundDriverInit:
     str  r1, [r0, #0x14]
     ldr  r1, =0x273
     str  r1, [r0, #0x18]
-    ldr  r1, =swi_DoNothing
+    ldr  r1, =swi_DoNothing + 1
     str  r1, [r0, #0x28]
     str  r1, [r0, #0x2c]
     str  r1, [r0, #0x30]

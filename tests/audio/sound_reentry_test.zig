@@ -23,6 +23,13 @@ test "SoundDriverMain re-entrancy lock" {
     while (rd32(&core, 0x10C) != 0xA5A5 and frames < 400) : (frames += 1) core.frameAdvance(.{});
 
     try std.testing.expectEqual(@as(u32, 0xA5A5), rd32(&core, 0x10C)); // stub ran to completion
+    try std.testing.expectEqual(@as(u32, 0x68736D53), rd32(&core, 0x110));
+    try std.testing.expectEqual(@as(u32, 1), rd32(&core, 0x114));
+    try std.testing.expectEqual(@as(u32, 0), rd32(&core, 0x118));
+    try std.testing.expectEqual(@as(u32, 0x12345678), rd32(&core, 0x11C));
+    try std.testing.expectEqual(@as(u32, 0x02010000), rd32(&core, 0x120));
+    try std.testing.expectEqual(@as(u32, 0x87654321), rd32(&core, 0x124));
+    try std.testing.expectEqual(@as(u32, 0x68736D53), rd32(&core, 0x128));
     try std.testing.expectEqual(@as(u32, 1), rd32(&core, 0x100)); // hook ran once: nested call rejected
     try std.testing.expectEqual(@as(u32, 0x68736D54), rd32(&core, 0x104)); // ident locked during the call
     try std.testing.expectEqual(@as(u32, 0x68736D53), rd32(&core, 0x108)); // ident restored after

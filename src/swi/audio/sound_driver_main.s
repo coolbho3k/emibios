@@ -66,7 +66,7 @@
     .set ADONE_PAD,        0
     .set MAIN_BASE_PAD,    0
     .set MAIN_ENTRY_PAD_A, 1
-    .set MAIN_ENTRY_PAD_B, 6
+    .set MAIN_ENTRY_PAD_B, 5
     .set MAIN_HOOK_PAD,    5
     .set CLEAR_Z_PAD,      1
     .set CLEAR_T8_PAD,     1
@@ -105,8 +105,9 @@ swi_SoundDriverMain:
     str       r0, [sp, #0x3c]
     ldr       r3, [r0, #0x20]
     ldr       r0, [r0, #0x24]
-    mov       lr, pc
-    bx        r3
+    cmp       r3, #0
+    movne     lr, pc
+    bxne      r3
     guard_pad MAIN_HOOK_PAD
     ldr       r3, [r5, #0x28]
     mov       r0, r5
