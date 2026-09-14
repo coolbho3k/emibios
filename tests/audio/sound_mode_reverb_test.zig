@@ -7,7 +7,6 @@ const emu = @import("emu");
 const opts = @import("test_options");
 
 test "SoundDriverMode reverb apply and clear" {
-    if (!std.mem.eql(u8, opts.emu, "gbahawk")) return error.SkipZigTest;
     const alloc = std.testing.allocator;
     const bios = try iface.readFile(alloc, opts.bios_path);
     defer alloc.free(bios);
