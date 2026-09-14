@@ -1,6 +1,6 @@
 .{
     .name = .emibios,
-    .version = "0.1.0",
+    .version = "0.1.1",
     .fingerprint = 0x99ea2d4d8626f1b1,
     .minimum_zig_version = "0.16.0",
     .dependencies = .{
