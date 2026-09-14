@@ -1,0 +1,110 @@
+name: Release
+run-name: Release ${{ inputs.version }}
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: SemVer tag without a v prefix (for example 0.1.2)
+        required: true
+        type: string
+      notes:
+        description: Release notes (Markdown)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: emibios-release
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Validate release inputs
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+          RELEASE_NOTES: ${{ inputs.notes }}
+        shell: bash
+        run: |
+          number='(0|[1-9][0-9]*)'
+          identifier="($number|[0-9]*[A-Za-z-][0-9A-Za-z-]*)"
+          semver="^$number\.$number\.$number(-$identifier(\.$identifier)*)?(\+[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$"
+          if [[ ! "$RELEASE_VERSION" =~ $semver ]]; then
+            echo "::error::Version must be SemVer without a v prefix"
+            exit 1
+          fi
+          if [[ -z "${RELEASE_NOTES//[[:space:]]/}" ]]; then
+            echo "::error::Release notes must not be blank"
+            exit 1
+          fi
+      - name: Refuse existing tag or release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_VERSION: ${{ inputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          refs=$(gh api "repos/$GH_REPO/git/matching-refs/tags/$RELEASE_VERSION")
+          test "$(jq --arg ref "refs/tags/$RELEASE_VERSION" '[.[] | select(.ref == $ref)] | length' <<< "$refs")" -eq 0
+          releases=$(gh api --paginate "repos/$GH_REPO/releases" --jq '.[].tag_name')
+          if grep -Fxq -- "$RELEASE_VERSION" <<< "$releases"; then
+            echo "::error::Release already exists"
+            exit 1
+          fi
+
+  checks:
+    needs: validate
+    uses: ./.github/workflows/ci.yml
+
+  publish:
+    needs: checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: emibios-${{ github.sha }}
+          path: release-artifacts
+      - name: Prepare release notes
+        env:
+          RELEASE_NOTES: ${{ inputs.notes }}
+        shell: bash
+        run: |
+          printf '%s' "$RELEASE_NOTES" > "$RUNNER_TEMP/release-notes.md"
+      - name: Tag and publish verified binaries
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_VERSION: ${{ inputs.version }}
+          SOURCE_SHA: ${{ github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd release-artifacts/zig-out/bin
+          sha256sum --check ../../bios.sha256
+          test "$(wc -c < gba_bios.bin)" -eq 16384
+          test "$(wc -c < test_rom.gba)" -eq 1048576
+          refs=$(gh api "repos/$GH_REPO/git/matching-refs/tags/$RELEASE_VERSION")
+          test "$(jq --arg ref "refs/tags/$RELEASE_VERSION" '[.[] | select(.ref == $ref)] | length' <<< "$refs")" -eq 0
+          prerelease=()
+          core_version="${RELEASE_VERSION%%+*}"
+          if [[ "$core_version" == *-* ]]; then prerelease=(--prerelease); fi
+          gh api --method POST "repos/$GH_REPO/git/refs" \
+            -f "ref=refs/tags/$RELEASE_VERSION" -f "sha=$SOURCE_SHA"
+          gh release create "$RELEASE_VERSION" gba_bios.bin test_rom.gba \
+            --verify-tag --title "$RELEASE_VERSION" \
+            --notes-file "$RUNNER_TEMP/release-notes.md" --draft "${prerelease[@]}"
+          gh release edit "$RELEASE_VERSION" --draft=false

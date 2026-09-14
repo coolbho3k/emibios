@@ -1,0 +1,104 @@
+name: CI
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' }}
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  quality:
+    name: Quality
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: mlugg/setup-zig@d1434d08867e3ee9daa34448df10607b98908d29 # v2.2.1
+        with:
+          version: 0.16.0
+          use-cache: false
+      - run: zig version
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/.cache/zig/p
+          key: zig-deps-${{ runner.os }}-${{ runner.arch }}-0.16.0-${{ hashFiles('build.zig.zon') }}
+      - run: zig fmt --check build.zig build.zig.zon tools rom tests
+      - run: zig build lint
+      - if: always()
+        run: git diff --exit-code
+
+  build:
+    name: Build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: mlugg/setup-zig@d1434d08867e3ee9daa34448df10607b98908d29 # v2.2.1
+        with:
+          version: 0.16.0
+          use-cache: false
+      - run: zig version
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/.cache/zig/p
+          key: zig-deps-${{ runner.os }}-${{ runner.arch }}-0.16.0-${{ hashFiles('build.zig.zon') }}
+      - run: zig build verify -Dno-recal=true
+      - run: zig build rom -Dno-recal=true
+      - run: zig build report -Dno-recal=true
+      - name: Check binary sizes
+        run: |
+          test "$(wc -c < zig-out/bin/gba_bios.bin)" -eq 16384
+          test "$(wc -c < zig-out/bin/test_rom.gba)" -eq 1048576
+      - if: always()
+        run: git diff --exit-code
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: emibios-${{ github.sha }}
+          path: |
+            zig-out/bin/gba_bios.bin
+            zig-out/bin/bios.elf
+            zig-out/bin/test_rom.gba
+            bios.sha256
+          if-no-files-found: error
+          retention-days: 14
+
+  test:
+    name: Test (${{ matrix.emu }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        emu: [gbahawk, mesence]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: mlugg/setup-zig@d1434d08867e3ee9daa34448df10607b98908d29 # v2.2.1
+        with:
+          version: 0.16.0
+          use-cache: false
+      - run: zig version
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/.cache/zig/p
+          key: zig-deps-${{ runner.os }}-${{ runner.arch }}-0.16.0-${{ hashFiles('build.zig.zon') }}
+      - run: zig build verify -Dno-recal=true
+      - run: zig build test -Dno-recal=true -Demu=${{ matrix.emu }} --test-timeout 240s --summary all
+      - if: always()
+        run: git diff --exit-code
