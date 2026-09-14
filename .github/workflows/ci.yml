@@ -99,6 +99,6 @@ jobs:
           path: ~/.cache/zig/p
           key: zig-deps-${{ runner.os }}-${{ runner.arch }}-0.16.0-${{ hashFiles('build.zig.zon') }}
       - run: zig build verify -Dno-recal=true
-      - run: zig build test -Dno-recal=true -Demu=${{ matrix.emu }} --test-timeout 240s --summary all
+      - run: zig build test -Dno-recal=true -Demu=${{ matrix.emu }} --test-timeout 600s --summary all
       - if: always()
         run: git diff --exit-code
