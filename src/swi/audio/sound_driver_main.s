@@ -226,6 +226,10 @@ swi_SoundDriverMain:
     str  r3, [r7, #0x1c]
     b    .cs_envcalc
 .fx_stub:
+    ldrh      r3, [r2, #-14]
+    tst       r3, #0x4000
+    orrne     r0, r0, #0x10
+    mov       r3, #0
     teq       r3, #1
     guard_pad FXS_PAD
     b         .ea_join
@@ -327,6 +331,9 @@ swi_SoundDriverMain:
     ldr       r5, [sp, #0x08]
     mov       r6, #0x630
     sub       r6, r6, #1
+    ldrb      r2, [r7]
+    tst       r2, #0x10
+    bne       .fx_looping
     cmp       r4, r5
     mul       r2, r7, r7
     b         .+4
@@ -359,6 +366,31 @@ swi_SoundDriverMain:
     strb r4, [r7, #0x00]
     bne  .fx_loop
     b    .fx_exit
+.fx_looping:
+    cmp r4, #0
+    bne .fx_looping_sample
+    ldr r2, [r7, #0x24]
+    ldr r3, [r2, #8]
+    ldr r4, [r2, #12]
+    sub r4, r4, r3
+    add r1, r2, #16
+    add r1, r1, r3
+.fx_looping_sample:
+    ldrsb r3, [r1], #1
+    mul   r2, r3, r9
+    ldrb  r8, [r0]
+    add   r2, r8, r2, asr #8
+    strb  r2, [r0], #1
+    mul   r2, r3, lr
+    ldrb  r8, [r0, r6]
+    add   r2, r8, r2, asr #8
+    strb  r2, [r0, r6]
+    sub   r4, r4, #1
+    subs  r5, r5, #1
+    bgt   .fx_looping
+    str   r4, [r7, #0x18]
+    str   r1, [r7, #0x28]
+    b     .fx_exit
 .fx_kill:
     mov r4, #0
     b   .fx_last
@@ -507,8 +539,14 @@ swi_SoundDriverMain:
     guard_pad MC_STOP_PAD
     b         .next_chan_arm
 .mc_loopwrap:
-    ldr       r1, [sp, #0x38]
-    mov       r10, r4
+    ldr r1, [sp, #0x38]
+    @ Preserve overshoot across short loops.
+.mc_loop_normalize:
+    add       r10, r10, r4
+    cmp       r10, #0
+    ble       .mc_loop_normalize
+    add       r1, r1, r4
+    sub       r1, r1, r10
     add       r1, r1, #0x10
     guard_pad MCLW_PAD
     cmp       r2, r12
