@@ -379,6 +379,10 @@ mb_joy_irq_t:
     blo  .mbj_h_body
     movs r0, #0
     strh r0, [r6, #JB_STAT]
+    ldr  r0, =0x020001f8
+    ldr  r1, [r0, #4]
+    ldr  r0, [r0]
+    muls r0, r1
     str  r0, [r6, #JB_TRANS]
     b    .mbj_h_ret
 .mbj_h_body:
@@ -443,6 +447,10 @@ mb_joy_irq_t:
     bne  .mbj_h_ret
     movs r0, #0
     strh r0, [r6, #JB_STAT]
+    ldr  r0, =0x020001f8
+    ldr  r1, [r0, #4]
+    ldr  r0, [r0]
+    muls r0, r1
     str  r0, [r6, #JB_TRANS] @ 32-bit, like every JOY data access
     b    .mbj_h_ret
 .mbj_h_authinit:
