@@ -800,7 +800,7 @@ rx_getbit:
     mov  r1, r8
     ldr  r2, =RAM_ENTRYPOINT
     subs r1, r2
-    bl   mbp_field       @ 00C0/TTTT: total = 0xc0 + (length + 0x34)*4
+    bl   mbp_field       @ 000C/TTTT: total bytes = 0xc0 + (length + 0x34)*4
     b    .rxn_loop
 @ Body: Normal sends 32-bit words. Multiplay sends low/high halves. Replies lag one transfer.
 .rx_body_lo:                          @ state 5: a body transfer
