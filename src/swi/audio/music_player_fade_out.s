@@ -1,4 +1,4 @@
-@ SPDX-License-Identifier: GPL-3.0-or-later
+@ SPDX-License-Identifier: LGPL-3.0-or-later
 @ MusicPlayerFadeOut (SWI 0x24): start a fade on a music player.
 @
 @ Entry:  r0 = player, r1 = fade speed

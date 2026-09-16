@@ -84,4 +84,4 @@ firewall them against ingesting proprietary code or binaries into their context.
 
 ### License
 
-The BIOS itself is GPL-3.0-or-later by default. Tests and some tooling are MIT.
+The BIOS itself is LGPL-3.0-or-later by default. Tests and some tooling are MIT.

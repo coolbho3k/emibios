@@ -1,4 +1,4 @@
-@ SPDX-License-Identifier: GPL-3.0-or-later
+@ SPDX-License-Identifier: LGPL-3.0-or-later
 @ ArcTan2 (SWI 0x0a): full circle angle of a vector, octant decomposed atan2. Built
 @ on swi_ArcTan (0x09).
 @

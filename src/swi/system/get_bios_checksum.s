@@ -1,4 +1,4 @@
-@ SPDX-License-Identifier: GPL-3.0-or-later
+@ SPDX-License-Identifier: LGPL-3.0-or-later
 @ GetBiosChecksum (SWI 0x0d): returns the same checksum as the retail BIOS, and takes the same
 @ number of cycles to execute (41042).
 @

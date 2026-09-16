@@ -1,4 +1,4 @@
-@ SPDX-License-Identifier: GPL-3.0-or-later
+@ SPDX-License-Identifier: LGPL-3.0-or-later
 @ ObjAffineSet (SWI 0x0f) and BGAffineSet (SWI 0x0e)
 @
 @ Build affine matrices from scale and angle. Both share a 256-entry sine LUT in

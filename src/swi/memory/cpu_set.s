@@ -1,4 +1,4 @@
-@ SPDX-License-Identifier: GPL-3.0-or-later
+@ SPDX-License-Identifier: LGPL-3.0-or-later
 @ CpuSet (SWI 0x0b) and CpuFastSet (SWI 0x0c)
 @
 @ Block copy and fill. CpuSet moves 16- or 32-bit units. CpuFastSet moves 32-bit units in

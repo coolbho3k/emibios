@@ -1,4 +1,4 @@
-@ SPDX-License-Identifier: GPL-3.0-or-later
+@ SPDX-License-Identifier: LGPL-3.0-or-later
 @ SoundChannelClear (SWI 0x1e): stops all 12 DirectSound channels for the active SoundInfo.
 @
 @ Entry:  none (SoundInfo from [SOUND_INFO_PTR])

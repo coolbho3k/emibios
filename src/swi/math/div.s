@@ -1,4 +1,4 @@
-@ SPDX-License-Identifier: GPL-3.0-or-later
+@ SPDX-License-Identifier: LGPL-3.0-or-later
 @ Div (SWI 0x06) and DivArm (SWI 0x07): signed integer divide.
 .arm
 .p2align 2

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: LGPL-3.0-or-later
 //! Verifies a file against a SHA-256 text file.
 const std = @import("std");
 const Io = std.Io;

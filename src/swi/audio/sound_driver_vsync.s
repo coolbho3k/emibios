@@ -1,4 +1,4 @@
-@ SPDX-License-Identifier: GPL-3.0-or-later
+@ SPDX-License-Identifier: LGPL-3.0-or-later
 @ SoundDriverVSync (SWI 0x1d): called once per VBlank. Counts down the PCM DMA, and restarts
 @ the FIFOs when it expires.
 @

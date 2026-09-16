@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: LGPL-3.0-or-later
 //! Shared font sheet + 1bpp glyph logic
 const std = @import("std");
 const Io = std.Io;

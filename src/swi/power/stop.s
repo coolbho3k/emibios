@@ -1,4 +1,4 @@
-@ SPDX-License-Identifier: GPL-3.0-or-later
+@ SPDX-License-Identifier: LGPL-3.0-or-later
 @ Stop (SWI 0x03): writes HALTCNT = 0x80 to enter low-power stop. The CPU and clocks stay
 @ halted until a keypad, serial, or cartridge interrupt wakes it.
 @

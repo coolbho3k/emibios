@@ -1,4 +1,4 @@
-@ SPDX-License-Identifier: GPL-3.0-or-later
+@ SPDX-License-Identifier: LGPL-3.0-or-later
 @ HuffUnCompReadNormal (SWI 0x13): decompresses Huffman streams with 4-bit or 8-bit symbols.
 @
 @ Entry:  r0 = source: 32-bit header (bits 0-3 = symbol bit-width 4/8, bits 8-31 = size in

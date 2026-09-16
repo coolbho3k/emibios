@@ -1,4 +1,4 @@
-@ SPDX-License-Identifier: GPL-3.0-or-later
+@ SPDX-License-Identifier: LGPL-3.0-or-later
 @ Boot screen.
 @
 @ We also check the ROM header. Why?  BIOS replacement that may run on real hardware should check

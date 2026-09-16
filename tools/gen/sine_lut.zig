@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: LGPL-3.0-or-later
 //! Build-time generator: emits the affine sine LUT as GBA assembly data.
 //!
 //! sine_lut[n] = trunc(16384 * sin(2*pi*n/256)) for n = 0..255 (callers mask the index).

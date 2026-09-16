@@ -1,4 +1,4 @@
-@ SPDX-License-Identifier: GPL-3.0-or-later
+@ SPDX-License-Identifier: LGPL-3.0-or-later
 @ Halt (SWI 0x02): writes HALTCNT = 0 to halt the CPU until an enabled interrupt fires.
 @
 @ Entry:  none

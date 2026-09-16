@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: LGPL-3.0-or-later
 //! Prints BIOS size usage from the installed binary and ELF symbol table.
 //! SWI ordering comes from src/swi/swi_table.s so the report follows the dispatch table.
 const std = @import("std");

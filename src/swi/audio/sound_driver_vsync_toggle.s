@@ -1,4 +1,4 @@
-@ SPDX-License-Identifier: GPL-3.0-or-later
+@ SPDX-License-Identifier: LGPL-3.0-or-later
 @ SoundDriverVSyncOff (SWI 0x28): stop the BIOS sound driver for one frame.
 @
 @ Entry:  none (SoundInfo from [SOUND_INFO_PTR])

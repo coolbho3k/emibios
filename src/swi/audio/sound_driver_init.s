@@ -1,4 +1,4 @@
-@ SPDX-License-Identifier: GPL-3.0-or-later
+@ SPDX-License-Identifier: LGPL-3.0-or-later
 @ SoundDriverInit (SWI 0x1a): set up the BIOS sound driver in a caller-provided work area.
 @
 @ Entry:  r0 = SoundInfo work area (prior content ignored)

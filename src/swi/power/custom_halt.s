@@ -1,4 +1,4 @@
-@ SPDX-License-Identifier: GPL-3.0-or-later
+@ SPDX-License-Identifier: LGPL-3.0-or-later
 @ CustomHalt (SWI 0x27): writes the caller's r2 to HALTCNT.
 @
 @ Entry:  r2 = HALTCNT value (bit 7 set = stop, clear = halt)

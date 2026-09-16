@@ -1,4 +1,4 @@
-@ SPDX-License-Identifier: GPL-3.0-or-later
+@ SPDX-License-Identifier: LGPL-3.0-or-later
 @ Diff unfilters: Diff8bitWrite8bit (0x16), Diff8bitWrite16bit (0x17), Diff16bit (0x18).
 @
 @ Each undoes a prefix-difference filter. The destination starts from prev = 0 and each

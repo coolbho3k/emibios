@@ -1,4 +1,4 @@
-@ SPDX-License-Identifier: GPL-3.0-or-later
+@ SPDX-License-Identifier: LGPL-3.0-or-later
 @ SWI dispatch table, halfword entries (to save space!) indexed by SWI number 0x00-0x2a. Bit 0 of
 @ an entry selects the handler's instruction state (+1 = Thumb).
 .arm

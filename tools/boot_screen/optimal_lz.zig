@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: LGPL-3.0-or-later
 //! GBA LZ77 encoder optimized for the final Huffman4 wrapper.
 //! A Zopfli-style loop re-parses with the real Huffman code lengths fed back into the LZ cost model, which
 //! provides a slightly better compression ratio with Huffman4 than without optimization. This is the most efficient

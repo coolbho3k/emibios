@@ -1,4 +1,4 @@
-@ SPDX-License-Identifier: GPL-3.0-or-later
+@ SPDX-License-Identifier: LGPL-3.0-or-later
 @ swi_HardReset IO init table.
 .hard_reset_IO_values:
     @ address, value

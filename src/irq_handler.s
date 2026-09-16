@@ -1,4 +1,4 @@
-@ SPDX-License-Identifier: GPL-3.0-or-later
+@ SPDX-License-Identifier: LGPL-3.0-or-later
 .arm
 exception_irq:
     stmfd sp!, {r0-r3, r12, lr}

@@ -1,4 +1,4 @@
-@ SPDX-License-Identifier: GPL-3.0-or-later
+@ SPDX-License-Identifier: LGPL-3.0-or-later
 @ BitUnpack (SWI 0x10): expands packed bit units into wider units with an additive offset.
 @
 @ Entry:  r0 = source (packed data)

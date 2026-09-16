@@ -1,4 +1,4 @@
-@ SPDX-License-Identifier: GPL-3.0-or-later
+@ SPDX-License-Identifier: LGPL-3.0-or-later
 @ SoundDriverMode (SWI 0x1b): apply a packed mode word to the active SoundInfo.
 @
 @ Entry:  r0 = packed mode word

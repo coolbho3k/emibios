@@ -1,4 +1,4 @@
-@ SPDX-License-Identifier: GPL-3.0-or-later
+@ SPDX-License-Identifier: LGPL-3.0-or-later
 @ Boot timing and cart handoff calibration constants.
 @
 @ Cart handoff must land on an exact cycle and PPU phase. Re-measure after boot path changes.

@@ -1,4 +1,4 @@
-@ SPDX-License-Identifier: GPL-3.0-or-later
+@ SPDX-License-Identifier: LGPL-3.0-or-later
 @ SoundGetJumpList (SWI 0x2a): writes a 36-entry jump table to [r0] for the game sound engine.
 @
 @ Entry:  r0 = table destination.  Return: r0 = dest + 144.

@@ -1,4 +1,4 @@
-@ SPDX-License-Identifier: GPL-3.0-or-later
+@ SPDX-License-Identifier: LGPL-3.0-or-later
 @ ArcTan (SWI 0x09): arc tangent of a signed Q1.14 ratio.
 @
 @ Entry:  r0 = ratio

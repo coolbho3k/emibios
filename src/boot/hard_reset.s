@@ -1,4 +1,4 @@
-@ SPDX-License-Identifier: GPL-3.0-or-later
+@ SPDX-License-Identifier: LGPL-3.0-or-later
 @ exception_reset has to be at 0x68. SoundDriverVSync can read the actual value of BIOS[0] before
 @ sound init. A few games have been observed to fold this value into their state, so b exception_reset
 @ must always branch to 0x68.

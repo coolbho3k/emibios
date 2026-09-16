@@ -1,4 +1,4 @@
-@ SPDX-License-Identifier: GPL-3.0-or-later
+@ SPDX-License-Identifier: LGPL-3.0-or-later
 @ LZ77 decompression: LZ77UnCompWrite8bit (0x11), LZ77UnCompWrite16bit (0x12).
 @
 @ Common interface:

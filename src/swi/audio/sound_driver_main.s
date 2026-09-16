@@ -1,4 +1,4 @@
-@ SPDX-License-Identifier: GPL-3.0-or-later
+@ SPDX-License-Identifier: LGPL-3.0-or-later
 @ SoundDriverMain (SWI 0x1c): mix one frame of DirectSound PCM for the active SoundInfo.
 @
 @ Entry:  none (SoundInfo from [SOUND_INFO_PTR])

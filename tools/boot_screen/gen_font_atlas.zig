@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: LGPL-3.0-or-later
 //! Generates the on-GBA test ROM's font atlas from the font sheet
 const std = @import("std");
 const Io = std.Io;

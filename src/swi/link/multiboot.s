@@ -1,4 +1,4 @@
-@ SPDX-License-Identifier: GPL-3.0-or-later
+@ SPDX-License-Identifier: LGPL-3.0-or-later
 @ MultiBoot (SWI 0x25): the GBA to GBA link cable sender.
 @ The receiver side lives in boot/multiboot_receiver.s.
 .thumb

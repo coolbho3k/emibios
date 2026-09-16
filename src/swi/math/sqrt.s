@@ -1,4 +1,4 @@
-@ SPDX-License-Identifier: GPL-3.0-or-later
+@ SPDX-License-Identifier: LGPL-3.0-or-later
 @ Sqrt (SWI 0x08): integer square root by Newton iteration.
 @
 @ Entry:  r0 = n

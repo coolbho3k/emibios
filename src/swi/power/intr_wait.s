@@ -1,4 +1,4 @@
-@ SPDX-License-Identifier: GPL-3.0-or-later
+@ SPDX-License-Identifier: LGPL-3.0-or-later
 @ IntrWait (SWI 0x04) and VBlankIntrWait (SWI 0x05)
 .arm
 

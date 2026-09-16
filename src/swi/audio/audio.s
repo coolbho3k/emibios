@@ -1,4 +1,4 @@
-@ SPDX-License-Identifier: GPL-3.0-or-later
+@ SPDX-License-Identifier: LGPL-3.0-or-later
 #include "swi/audio/sound_bias.s"
 #include "swi/audio/sound_driver_init.s"
 #include "swi/audio/sound_driver_vsync.s"

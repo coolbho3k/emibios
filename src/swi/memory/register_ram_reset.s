@@ -1,4 +1,4 @@
-@ SPDX-License-Identifier: GPL-3.0-or-later
+@ SPDX-License-Identifier: LGPL-3.0-or-later
 @ RegisterRamReset (SWI 0x01), Thumb: clears RAM regions and resets IO ports by flag.
 @
 @ Entry:  r0 = ResetFlags: bit0 EWRAM, bit1 IWRAM, bit2 Palette, bit3 VRAM, bit4 OAM, bit5 SIO,

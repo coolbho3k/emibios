@@ -1,4 +1,4 @@
-@ SPDX-License-Identifier: GPL-3.0-or-later
+@ SPDX-License-Identifier: LGPL-3.0-or-later
 @ SoftReset (SWI 0x00) and the shared reset_modes setup.
 @
 @ Entry:  none (reads the return mode flag byte at 0x03007ffa)

@@ -1,4 +1,4 @@
-@ SPDX-License-Identifier: GPL-3.0-or-later
+@ SPDX-License-Identifier: LGPL-3.0-or-later
 @ MidiKey2Freq (SWI 0x1f): convert a MIDI key plus fine adjustment to a SoundChannel frequency.
 @
 @ Entry:  r0 = WaveData*, r1 = MIDI key, r2 = fine adjust (256ths of a semitone)

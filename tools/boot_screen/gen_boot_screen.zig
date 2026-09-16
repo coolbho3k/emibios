@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: LGPL-3.0-or-later
 //! Generates boot_screen_data.s from the logo PNG and font sheet.
 //! The payload is 1bpp tiles compressed as LZ77 inside 4-bit Huffman. The logo tiles are stored
 //! column-major, with each byte being one 8-pixel column, which compresses the logo best.

@@ -1,4 +1,4 @@
-@ SPDX-License-Identifier: GPL-3.0-or-later
+@ SPDX-License-Identifier: LGPL-3.0-or-later
 @ SoundBias (SWI 0x19): ramps the SOUNDBIAS bias field toward a target level at one unit per step.
 @
 @ Entry:  r0 = target select (0 picks bias 0x000, nonzero picks 0x200)

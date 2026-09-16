@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: LGPL-3.0-or-later
 //! Copy <in> to <out>, zero-padded up to <size> bytes.
 const std = @import("std");
 const Io = std.Io;

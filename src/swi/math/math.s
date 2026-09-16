@@ -1,4 +1,4 @@
-@ SPDX-License-Identifier: GPL-3.0-or-later
+@ SPDX-License-Identifier: LGPL-3.0-or-later
 #include "swi/math/div.s"
 #include "swi/math/sqrt.s"
 #include "swi/math/arc_tan.s"

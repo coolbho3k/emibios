@@ -1,4 +1,4 @@
-@ SPDX-License-Identifier: GPL-3.0-or-later
+@ SPDX-License-Identifier: LGPL-3.0-or-later
 @ Executed at end of BIOS. Both are tail-called from boot_screen_show.
 @   boot_final_burn      - re-anchors to the PPU grid then burns until handoff.
 @   handoff_latch_prime  - the very last BIOS code. Pins CPU bus latches.

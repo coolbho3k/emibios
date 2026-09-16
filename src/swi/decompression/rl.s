@@ -1,4 +1,4 @@
-@ SPDX-License-Identifier: GPL-3.0-or-later
+@ SPDX-License-Identifier: LGPL-3.0-or-later
 @ Run-length decompression: RLUnCompWrite8bit (0x14), RLUnCompWrite16bit (0x15).
 @ Both handlers run all-Thumb, dispatched straight into Thumb (swi_table[0x14]/[0x15] = handler + 1).
 @ The continuous 1-word/2-instr Thumb fetch reproduces the per byte cycle costs.

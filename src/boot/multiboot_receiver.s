@@ -1,4 +1,4 @@
-@ SPDX-License-Identifier: GPL-3.0-or-later
+@ SPDX-License-Identifier: LGPL-3.0-or-later
 @ Receives a program at boot time. Start+Select or no cart enters here.
 @ Derived from GBATEK plus SIO captures via logic analyzer.
 @ Supports JoyBus, Multiplay, or Normal-32.

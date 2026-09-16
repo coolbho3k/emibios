@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: LGPL-3.0-or-later
 //! Style linter for the GBA BIOS assembly sources. Pass --fix to apply (zig build lint -Dfix=true).
 //! Assembly style rules:
 //!   - 4 spaces per indent, never tabs; no trailing whitespace; files end in exactly one newline.
