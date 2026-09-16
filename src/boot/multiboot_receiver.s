@@ -379,6 +379,10 @@ mb_joy_irq_t:
     blo  .mbj_h_body
     movs r0, #0
     strh r0, [r6, #JB_STAT]
+    ldr  r0, =0x020001f8
+    ldr  r1, [r0, #4]
+    ldr  r0, [r0]
+    muls r0, r1
     str  r0, [r6, #JB_TRANS]
     b    .mbj_h_ret
 .mbj_h_body:
@@ -443,6 +447,10 @@ mb_joy_irq_t:
     bne  .mbj_h_ret
     movs r0, #0
     strh r0, [r6, #JB_STAT]
+    ldr  r0, =0x020001f8
+    ldr  r1, [r0, #4]
+    ldr  r0, [r0]
+    muls r0, r1
     str  r0, [r6, #JB_TRANS] @ 32-bit, like every JOY data access
     b    .mbj_h_ret
 .mbj_h_authinit:
@@ -800,7 +808,7 @@ rx_getbit:
     mov  r1, r8
     ldr  r2, =RAM_ENTRYPOINT
     subs r1, r2
-    bl   mbp_field       @ 00C0/TTTT: total = 0xc0 + (length + 0x34)*4
+    bl   mbp_field       @ 000C/TTTT: total bytes = 0xc0 + (length + 0x34)*4
     b    .rxn_loop
 @ Body: Normal sends 32-bit words. Multiplay sends low/high halves. Replies lag one transfer.
 .rx_body_lo:                          @ state 5: a body transfer

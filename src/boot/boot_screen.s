@@ -711,7 +711,7 @@ mbp_reset:
     bl   mbp_idle
     pop  {pc}
 
-@ mbp_field(r0=cur, r1=total): "CCCC/TTTT", ???? until total known.
+@ mbp_field(r0=cur, r1=total): bytes in, "CCCC/TTTT" in 16-byte blocks, ???? until total known.
 mbp_field:
     push {r4, r5, r6, lr}
     adds r4, r0, #0 @ raw byte counts (the sweep needs them unsaturated)
@@ -754,14 +754,16 @@ mbp_field:
 .mbpf_advstore:
     str r6, [r2, #(MBP_SW_DONE - MBP_STRBUF)]
 .mbpf_nosweep:
-    lsrs r0, r4, #16
-    beq  .mbpf_cs
-    ldr  r4, =0x0000ffff
-.mbpf_cs:
-    lsrs r0, r5, #16
-    beq  .mbpf_ts
-    ldr  r5, =0x0000ffff
-.mbpf_ts:
+    cmp  r5, #0
+    beq  .mbpf_blocks
+    cmp  r4, r5
+    blo  .mbpf_blocks
+    adds r4, r5, #0
+    adds r4, #15
+.mbpf_blocks:
+    lsrs r4, r4, #4
+    adds r5, #15
+    lsrs r5, r5, #4
     lsrs r0, r4, #8
     adds r1, r2, #0
     bl   bs_hex2
