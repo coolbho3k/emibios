@@ -400,16 +400,15 @@ swi_SoundDriverMain:
     ldrb      r2, [r7, #0x01]
     tst       r2, #0x08
 .cs_envcalc:
+    @ Scale the envelope by master volume first, then apply left and right volume.
     ldr       r2, [sp, #0x10]
-    ldrb      r3, [r7, #0x02]
-    mul       r4, r3, r2
+    mul       r4, r1, r2
     mov       r4, r4, lsr #4
-    mul       r3, r4, r1
+    ldrb      r3, [r7, #0x02]
+    mul       r3, r4, r3
     mov       r9, r3, lsr #8
     ldrb      r3, [r7, #0x03]
-    mul       r4, r3, r2
-    mov       r4, r4, lsr #4
-    mul       r3, r4, r1
+    mul       r3, r4, r3
     mov       lr, r3, lsr #8
     bne       .cs_fixed
     ldrb      r3, [r7, #0x00]
