@@ -9,7 +9,7 @@ and matching the behavior of the retail BIOS.
 Originally based on [Cult-of-GBA BIOS](https://github.com/Cult-of-GBA/BIOS/) by fleroviux and
 DenSinH.
 
-<img src="boot.webp" alt="emibios boot sequence" width="240" height="160"> <img src="multiboot.webp" alt="emibios multiboot download" width="240" height="160">
+<img src="boot.webp" alt="emibios boot sequence" width="240" height="160"> <img src="multiboot.webp" alt="emibios multiboot download" width="240" height="160"> <img src="dirty_cart.webp" alt="emibios dirty cart" width="240" height="160">
 
 ### Features
 
