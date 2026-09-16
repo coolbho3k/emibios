@@ -1,4 +1,5 @@
 # emibios: a GBA BIOS replacement
+**Download latest: [gba_bios.bin | 0.1.2](https://github.com/coolbho3k/emibios/releases/download/0.1.2/gba_bios.bin)**
 
 emibios is a research GBA BIOS replacement that aims to be as accurate as possible when running
 commercial games while being freely redistributable. It is not intended to contain, or use as
