@@ -8,7 +8,7 @@ and matching the behavior of the retail BIOS.
 Originally based on [Cult-of-GBA BIOS](https://github.com/Cult-of-GBA/BIOS/) by fleroviux and
 DenSinH.
 
-![emibios boot sequence](boot.webp) ![emibios multiboot download](multiboot.webp)
+<img src="boot.webp" alt="emibios boot sequence" width="240" height="160"> <img src="multiboot.webp" alt="emibios multiboot download" width="240" height="160">
 
 ### Features
 
