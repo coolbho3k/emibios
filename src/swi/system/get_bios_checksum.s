@@ -7,14 +7,21 @@
 @ r2 and r4-r11 preserved.
 .arm
 swi_GetBiosChecksum:
+    # Disable IRQ and FIQ
+    mrs r1, cpsr
+    orr r1, r1, #(IRQ_DISABLE | FIQ_DISABLE)
+    msr cpsr_c, r1
     ldr r0, =0xbaae187f
-    .set GBC_COUNT, 10238
+    .set GBC_COUNT, 10237
     ldr r3, =GBC_COUNT
 .gbc_loop:
     subs r3, r3, #1
     bne  .gbc_loop
-    mov  r3, r3, lsl r3
     mov  r3, #0x4000
-    mov  r1, #1
-    bx   lr
+    # Re-enable IRQ and FIQ
+    mrs r1, cpsr
+    bic r1, r1, #(IRQ_DISABLE | FIQ_DISABLE)
+    msr cpsr_c, r1
+    mov r1, #1
+    bx  lr
     .ltorg
