@@ -18,6 +18,7 @@ b exception_irq
 b exception_unused
 
 #include "boot/hard_reset.s"
+#include "boot/reset_io_table.s"
 
 @ The IRQ handler must be at 0x128 so the return address it hands the user handler is exactly
 @ 0x138. Games save this to their stack, so it should match retail.
@@ -40,8 +41,6 @@ exception_unused:
 
 @ swi_SoftReset + reset_modes, grouped here with the boot/reset code.
 #include "swi/system/soft_reset.s"
-
-#include "boot/reset_io_table.s"
 
 @ SWI handlers
 #include "swi/memory/cpu_set.s"

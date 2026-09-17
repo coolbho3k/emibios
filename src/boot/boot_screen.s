@@ -85,7 +85,14 @@
 .arm
 .align 2                               @ 4-byte align: ARM bl target
 @ Keeps the pre-0x128 entrypoint call site at one 4-byte `bl`.
+@ r0 = MMIO from HardReset.
 boot_screen_entry:
+    @ Start+Select uses the no-cart path after initialization.
+    add   r2, r0, #(REG_KEYINPUT - MMIO_BASE)
+    ldrh  r2, [r2]
+    tst   r2, #(KEY_START | KEY_SELECT)
+    ldreq r0, =multiboot_receiver_detect + 1
+    bxeq  r0
     @ Multiboot with no cart. Valid GamePak starts with an 0xeaxxxxxx ARM branch.
     mov   r0, #ROM_ENTRYPOINT
     ldr   r0, [r0]
@@ -704,10 +711,15 @@ mbp_reset:
     str  r0, [r1, #(MBP_TINT - MBP_STRBUF)]   @ MBP_TINT:   next palette byte reapplies
     ldr  r1, =DMA3SAD
     strh r0, [r1, #0xa]                       @ DMA3CNT_H = 0: park the copper
+    @ JoyBus may interrupt the animation; stop its wobble DMA.
+    subs r1, #(DMA3SAD - DMA0SAD)
+    strh r0, [r1, #0xa]
+    subs r1, #(DMA0SAD - BG0HOFS)
+    strh r0, [r1]
     ldr  r0, =BS_PURCOL
     ldrh r0, [r0]
     ldr  r1, =BGPAL
-    strh r0, [r1, #2]                         @ palette[1] = the boot purple: logo restored
+    strh r0, [r1, #2] @ palette[1] = the boot purple: logo restored
     bl   mbp_idle
     pop  {pc}
 
