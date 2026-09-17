@@ -44,6 +44,16 @@
 multiboot_receiver_detect:
     ldr r0, =SYS_STACK
     mov sp, r0
+    @ Acknowledge startup flags in JoyBus mode. mGBA 0.10.5 stores the
+    @ RegisterRamReset JOYCNT clear as status bits while in GPIO mode.
+    ldr  r0, =REG_RCNT
+    movs r1, #0xc0
+    lsls r1, r1, #8
+    strh r1, [r0]
+    movs r1, #7
+    strh r1, [r0, #(REG_JOYCNT - REG_RCNT)]
+    movs r1, #0
+    strh r1, [r0]
     @ If we enter while boot is happening, stop effect DMAs for the ready screen.
     movs r1, #0
     ldr  r0, =REG_DMA3CNT_H
