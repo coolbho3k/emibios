@@ -14,21 +14,8 @@ swi_HardReset:
     add  r1, r0, #(REG_IE - MMIO_BASE)
     strh r0, [r1]                         @ IE = 0 before pending IRQ can re-latch
     msr  cpsr_cf, #MODE_SYS
-    @ Start+Select at boot takes the multiboot download path instead of booting the cart.
-    mov  r0, #MMIO_BASE
-    add  r0, r0, #(REG_KEYINPUT - MMIO_BASE)
-    ldrh r1, [r0]
-    and  r1, r1, #(KEY_START | KEY_SELECT)
-    cmp  r1, #0 @ both pressed reads 0
-    @ The multiboot path  runs with IRQs live but never calls reset_modes, so set the
-    @ IRQ mode stack here.
-    msreq cpsr_c, #MODE_IRQ
-    ldreq sp, =IRQ_STACK
-    msreq cpsr_c, #MODE_SYS
-    ldreq r0, =multiboot_receiver_detect + 1
-    bxeq  r0 @ Thumb transport detector
-    bl    reset_modes
-    mov   r0, #0xff
+    bl   reset_modes
+    mov  r0, #0xff
     @ RegisterRamReset(0xff). Forces blank at entry, which changes clear timing.
     swi #0x010000
     mov r0, #0xff
