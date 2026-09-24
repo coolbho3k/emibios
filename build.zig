@@ -13,6 +13,9 @@ pub fn build(b: *std.Build) void {
     // This flag is used to smoke out if game divergences are caused by BIOS layout differences, which are fine.
     const layout_perturb = b.option(usize, "layout-perturb", "shift the BIOS layout by N bytes") orelse 0;
 
+    const no_header_check = b.option(bool, "no-header-check", "boot carts with bad headers instead of showing CLEAN CART") orelse false;
+    const sha_file = if (no_header_check) "bios_no_header_check.sha256" else "bios.sha256";
+
     // Build-time generators
     //   1. Sine LUT used by affine and boot screen
     //   2. Boot screen assets
@@ -60,6 +63,7 @@ pub fn build(b: *std.Build) void {
     asm_cmd.addArg("-I");
     asm_cmd.addDirectoryArg(boot_dir);
     if (layout_perturb != 0) asm_cmd.addArg(b.fmt("-Wa,--defsym,LAYOUT_PERTURB={d}", .{layout_perturb}));
+    if (no_header_check) asm_cmd.addArg("-Wa,--defsym,NO_HEADER_CHECK=1");
     asm_cmd.addArg("-MD"); // emit a depfile alongside the object...
     _ = asm_cmd.addPrefixedDepFileOutputArg("-MF", "entrypoint.o.d"); // ...which the Run step parses for inputs
     asm_cmd.addArg("-o");
@@ -84,12 +88,14 @@ pub fn build(b: *std.Build) void {
         gate.setCwd(b.path("."));
         gate.addArg("gate");
         gate.addArg(zig);
+        gate.addArg(sha_file);
+        if (no_header_check) gate.addArg("-Dno-header-check=true");
         gate.step.dependOn(&inst.step);
         b.getInstallStep().dependOn(&gate.step);
     }
 
     const verify = b.step("verify", "Build the BIOS and check its SHA-256");
-    const v = b.addSystemCommand(&.{ zig, "run", "tools/verify.zig", "--", "zig-out/bin/gba_bios.bin", "bios.sha256" });
+    const v = b.addSystemCommand(&.{ zig, "run", "tools/verify.zig", "--", "zig-out/bin/gba_bios.bin", sha_file });
     v.setCwd(b.path("."));
     // Skip the recalibration gate when checking the committed hash.
     v.step.dependOn(&inst.step);
@@ -212,6 +218,7 @@ pub fn build(b: *std.Build) void {
         rc.addArtifactArg(probe);
         rc.addFileArg(rom_gba);
         rc.addArg(b.fmt("{d}", .{handoff_target}));
+        if (no_header_check) rc.addArg("-Dno-header-check=true");
         recal.dependOn(&rc.step);
 
         // Standalone permutation harness ROM

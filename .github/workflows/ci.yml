@@ -57,6 +57,7 @@ jobs:
         with:
           path: ~/.cache/zig/p
           key: zig-deps-${{ runner.os }}-${{ runner.arch }}-0.16.0-${{ hashFiles('build.zig.zon') }}
+      - run: zig build verify -Dno-recal=true -Dno-header-check=true
       - run: zig build verify -Dno-recal=true
       - run: zig build rom -Dno-recal=true
       - run: zig build report -Dno-recal=true

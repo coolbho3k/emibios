@@ -428,8 +428,12 @@ bs_hdr_check:
     movs r0, #2
     pop  {r4-r7, pc}
 .bhc_badhdr:
+.ifdef NO_HEADER_CHECK
+    movs r0, #0
+.else
     movs r0, #1
-    pop  {r4-r7, pc}
+.endif
+    pop {r4-r7, pc}
 
 .align 2
 bs_hdr_sum:

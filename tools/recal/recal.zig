@@ -5,10 +5,14 @@ const Io = std.Io;
 
 const CAL = "src/calibration.s";
 const BIOS = "zig-out/bin/gba_bios.bin";
-const SHA = "bios.sha256";
 const CYC_PER_ITER: i64 = 4; // FINAL_BURN_PAD step. FINAL_FINE burns one cycle per nop
 const FRAME_CYC: i64 = 228 * 1232; // one GBA frame (228 scanlines x 1232 cyc): the BOOT_FRAME_TRIM step
 const MAX_ITERS: u32 = 80;
+// Build variants share calibration.s
+const VARIANTS = [_]struct { sha: []const u8, flags: []const []const u8 }{
+    .{ .sha = "bios.sha256", .flags = &.{} },
+    .{ .sha = "bios_no_header_check.sha256", .flags = &.{"-Dno-header-check=true"} },
+};
 
 fn run(gpa: std.mem.Allocator, io: Io, argv: []const []const u8) !void {
     const r = try std.process.run(gpa, io, .{ .argv = argv });
@@ -70,28 +74,32 @@ fn writeCal(gpa: std.mem.Allocator, io: Io, burn: i64, fine: i64, trim: i64) !vo
     try Io.Dir.cwd().writeFile(io, .{ .sub_path = CAL, .data = text });
 }
 
-fn writeSha(gpa: std.mem.Allocator, io: Io) !void {
+fn writeSha(gpa: std.mem.Allocator, io: Io, sha: []const u8) !void {
     const hex = try sha256Hex(gpa, io);
     const text = try std.fmt.allocPrint(gpa, "{s}  gba_bios.bin\n", .{hex});
-    try Io.Dir.cwd().writeFile(io, .{ .sub_path = SHA, .data = text });
+    try Io.Dir.cwd().writeFile(io, .{ .sub_path = sha, .data = text });
 }
 
 // The inner build must not recurse into the gate.
-fn measure(gpa: std.mem.Allocator, io: Io, zig: []const u8, probe: []const u8, rom: []const u8) !u64 {
-    try run(gpa, io, &.{ zig, "build", "-Dno-recal=true" });
+fn build(gpa: std.mem.Allocator, io: Io, zig: []const u8, flags: []const []const u8) !void {
+    try run(gpa, io, try std.mem.concat(gpa, []const u8, &.{ &.{ zig, "build", "-Dno-recal=true" }, flags }));
+}
+
+fn measure(gpa: std.mem.Allocator, io: Io, zig: []const u8, probe: []const u8, rom: []const u8, flags: []const []const u8) !u64 {
+    try build(gpa, io, zig, flags);
     return parseCyc(try runCapture(gpa, io, &.{ probe, BIOS, rom }));
 }
 
 // Default build path: re-pin only if the built BIOS diverged from the committed hash.
-fn gate(gpa: std.mem.Allocator, io: Io, zig: []const u8) !void {
+fn gate(gpa: std.mem.Allocator, io: Io, zig: []const u8, sha: []const u8, flags: []const []const u8) !void {
     const got = try sha256Hex(gpa, io);
-    const raw: []const u8 = Io.Dir.cwd().readFileAlloc(io, SHA, gpa, .limited(4096)) catch "";
+    const raw: []const u8 = Io.Dir.cwd().readFileAlloc(io, sha, gpa, .limited(4096)) catch "";
     const want = std.mem.trim(u8, raw[0..@min(raw.len, 64)], " \t\r\n");
     if (std.mem.eql(u8, &got, want)) return; // deterministic match -> no GBAHawk, no recal
-    try run(gpa, io, &.{ zig, "build", "recal" });
+    try run(gpa, io, try std.mem.concat(gpa, []const u8, &.{ &.{ zig, "build", "recal" }, flags }));
 }
 
-fn deep(gpa: std.mem.Allocator, io: Io, zig: []const u8, probe: []const u8, rom: []const u8, target: u64) !void {
+fn deep(gpa: std.mem.Allocator, io: Io, zig: []const u8, probe: []const u8, rom: []const u8, target: u64, flags: []const []const u8) !void {
     var ew: Io.File.Writer = .init(.stderr(), io, &.{});
     const w = &ew.interface;
 
@@ -102,10 +110,15 @@ fn deep(gpa: std.mem.Allocator, io: Io, zig: []const u8, probe: []const u8, rom:
 
     var iter: u32 = 0;
     while (iter < MAX_ITERS) : (iter += 1) {
-        const cyc = try measure(gpa, io, zig, probe, rom);
+        const cyc = try measure(gpa, io, zig, probe, rom, flags);
         if (cyc == target) {
             try writeCal(gpa, io, burn, fine, trim); // converged: the BIOS just built carries these constants
-            try writeSha(gpa, io); // pin the deterministic product hash
+            // Rebuild the requested variant last
+            for (VARIANTS) |v| {
+                try build(gpa, io, zig, v.flags);
+                try writeSha(gpa, io, v.sha);
+            }
+            try build(gpa, io, zig, flags);
             try w.print("recal: pinned handoff cycles={d} (FINAL_BURN_PAD={d} FINAL_FINE={d} BOOT_FRAME_TRIM={d}, {d} iterations)\n", .{ cyc, burn, fine, trim, iter });
             try w.flush();
             return;
@@ -144,15 +157,16 @@ pub fn main(init: std.process.Init) !void {
     const gpa = init.arena.allocator();
     const io = init.io;
     const args = try init.minimal.args.toSlice(gpa);
-    if (args.len < 3) return err(io, "usage: recal <gate|deep> <zig> [probe rom]");
+    if (args.len < 3) return err(io, "usage: recal <gate|deep> <zig> ...");
     const mode = args[1];
     const zig = args[2];
     if (std.mem.eql(u8, mode, "gate")) {
-        try gate(gpa, io, zig);
+        if (args.len < 4) return err(io, "usage: recal gate <zig> <sha> [build flags]");
+        try gate(gpa, io, zig, args[3], args[4..]);
     } else if (std.mem.eql(u8, mode, "deep")) {
-        if (args.len < 6) return err(io, "usage: recal deep <zig> <probe> <rom> <target-cycle>");
+        if (args.len < 6) return err(io, "usage: recal deep <zig> <probe> <rom> <target-cycle> [build flags]");
         const target = std.fmt.parseInt(u64, args[5], 10) catch return err(io, "recal deep: bad target cycle");
-        try deep(gpa, io, zig, args[3], args[4], target);
+        try deep(gpa, io, zig, args[3], args[4], target, args[6..]);
     } else return err(io, "unknown mode (expected gate|deep)");
 }
 
