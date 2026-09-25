@@ -87,7 +87,7 @@
 @ Keeps the pre-0x128 entrypoint call site at one 4-byte `bl`.
 boot_screen_entry:
     @ Multiboot with no cart. Valid GamePak starts with an 0xeaxxxxxx ARM branch.
-    mov   r0, #ROM_ENTRYPOINT
+    mov r0, #ROM_ENTRYPOINT
     @ Game Bub: read any word from cart other than 0x08000000 first
     ldr   r1, [r0, #4]
     ldr   r0, [r0]
