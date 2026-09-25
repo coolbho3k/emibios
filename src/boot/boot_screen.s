@@ -88,6 +88,8 @@
 boot_screen_entry:
     @ Multiboot with no cart. Valid GamePak starts with an 0xeaxxxxxx ARM branch.
     mov   r0, #ROM_ENTRYPOINT
+    @ Game Bub: read any word from cart other than 0x08000000 first
+    ldr   r1, [r0, #4]
     ldr   r0, [r0]
     and   r0, r0, #0xff000000
     cmp   r0, #0xea000000
