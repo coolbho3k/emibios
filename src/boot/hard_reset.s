@@ -3,8 +3,8 @@
 @ sound init. A few games have been observed to fold this value into their state, so b exception_reset
 @ must always branch to 0x68.
 .arm
-.org 0x68, 0
-exception_reset:
+@ SWI 0x26 always reboots. Its first instructions sit below 0x68 because the reset vector at 0x68
+@ checks POSTFLG before falling through to them.
 swi_HardReset:
     @ Block pending game IRQs before switching to SYS mode.
     @ RegisterRamReset clears IE/IME later, but SWI 0x26 can enter here with a pending
@@ -19,7 +19,35 @@ swi_HardReset:
     add  r0, r0, #(REG_KEYINPUT - MMIO_BASE)
     ldrh r1, [r0]
     and  r1, r1, #(KEY_START | KEY_SELECT)
-    cmp  r1, #0 @ both pressed reads 0
+    b    .hard_reset_keys
+@ Pad to retail's cost, then sp = 0x03007ff0 in the current mode, set N and return to lr-4.
+@ sp is the only register free for the pad loop.
+.debug_tail:
+    mov sp, #8
+.debug_burn:
+    subs sp, sp, #1
+    bne  .debug_burn
+    ldr  sp, .debug_sp
+    msr  cpsr_f, #0x80000000
+    subs pc, lr, #4
+.debug_sp:
+    .word 0x03007ff0
+.org 0x68, 0
+exception_reset:
+    @ After boot (POSTFLG = 1) a jump to 0 does not reboot. GBATEK says it goes to the debug
+    @ vector. On retail this masks IRQ/FIQ in the current mode, leaves r12 = cpsr | 0xc0 and
+    @ returns to the instruction that jumped. Calling a null pointer crashes.
+    mov  r12, #MMIO_BASE
+    ldrb r12, [r12, #(REG_POSTFLG - MMIO_BASE)]
+    cmp  r12, #1
+    bne  swi_HardReset
+    mrs  r12, cpsr
+    orr  r12, r12, #(IRQ_DISABLE | FIQ_DISABLE)
+    nop @ IRQ mask lands at retail's cycle
+    msr  cpsr_fc, r12
+    b    .debug_tail
+.hard_reset_keys:
+    cmp r1, #0 @ both pressed reads 0
     @ The multiboot path  runs with IRQs live but never calls reset_modes, so set the
     @ IRQ mode stack here.
     msreq cpsr_c, #MODE_IRQ

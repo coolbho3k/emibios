@@ -31,13 +31,12 @@ swi_ObjAffineSet:
     nop
 .obj_loop:
     @ Bus note: field read order is theta, then sx, sy.
-    ldrh  r12, [r0, #4]
-    mov   r12, r12, lsr #8
+    ldrb  r12, [r0, #5]
     add   r6, r8, r12, lsl #1
+    add   r12, r12, #64
     ldrsh r7, [r6]
     ldrsh r4, [r0]
     ldrsh r5, [r0, #2]
-    add   r12, r12, #64
     and   r12, r12, #0xff
     add   r6, r8, r12, lsl #1
     ldrsh r6, [r6]
@@ -57,6 +56,7 @@ swi_ObjAffineSet:
     strh  r12, [r1], r3
     add   r0, r0, #8
     adr   r8, sine_lut @ keep unconditional
+    nop
     subs  r2, r2, #1
     bne   .obj_loop
     ldmfd sp!, {r4-r8}
@@ -88,13 +88,12 @@ swi_BGAffineSet:
     nop
 .bg_loop:
     @ Bus note: field read order is theta, then sx, sy.
-    ldrh  r6, [r0, #16]
-    mov   r6, r6, lsr #8
+    ldrb  r6, [r0, #17]
     add   r12, r9, r6, lsl #1
+    add   r7, r6, #64
     ldrsh r8, [r12]
     ldrsh r4, [r0, #12]
     ldrsh r5, [r0, #14]
-    add   r7, r6, #64
     and   r7, r7, #0xff
     add   r12, r9, r7, lsl #1
     ldrsh r7, [r12] @ cancels the LDM +1 so the startx store stays on time
@@ -132,6 +131,7 @@ swi_BGAffineSet:
     mov   r12, r12
     add   r0, r0, #20
     add   r1, r1, #16
+    mov   r12, r12
     subs  r2, r2, #1
     bne   .bg_loop
     ldmfd sp!, {r4-r11, lr}
