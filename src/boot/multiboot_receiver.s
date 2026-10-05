@@ -164,8 +164,7 @@ multiboot_receiver_listen:
     mov r10, r3
     b   .det_round
 .det_go_joybus:
-    ldr r0, =multiboot_receiver_joybus + 1
-    bx  r0
+    b multiboot_receiver_joybus
 @ A completed transfer can be cross-mode noise. Commit only on the repeated recognition word.
 .det_go_multi:
     movs r0, #0x80
@@ -176,8 +175,7 @@ multiboot_receiver_listen:
     bne  .det_round
     movs r0, #1          @ r11 = transport: Multiplay
     mov  r11, r0
-    ldr  r0, =multiboot_receiver_normal + 1
-    bx   r0
+    b    multiboot_receiver_normal
 .det_go_norm32:
     movs r0, #0x80
     strh r0, [r5]
@@ -187,10 +185,7 @@ multiboot_receiver_listen:
     bne  .det_round
     movs r0, #0          @ r11 = transport: Normal-32
     mov  r11, r0
-    ldr  r0, =multiboot_receiver_normal + 1
-    bx   r0
-
-    .ltorg
+    b    multiboot_receiver_normal
 
 @ GameCube JoyBoot receive
 multiboot_receiver_joybus:
@@ -264,8 +259,7 @@ multiboot_receiver_joybus:
     movs r1, #0
     ldr  r5, =RAM_ENTRYPOINT
     mov  lr, r5
-    ldr  r2, =mb_boot_tail + 1
-    bx   r2
+    b    mb_boot_tail
 
 @ Seed JoyBoot state and present the challenge nonce. in: r6=JOY base. Clobbers r0-r3.
 mb_joy_seed:
@@ -608,11 +602,9 @@ multiboot_receiver_normal:
     @ Stalled: mid-protocol re-arm this mode. In recognition, return to transport detect.
     cmp r4, #0
     beq .rxn_to_listen
-    ldr r0, =multiboot_receiver_normal + 1 @ (r11 mode survives)
-    bx  r0
+    b   multiboot_receiver_normal @ (r11 mode survives)
 .rxn_to_listen:
-    ldr r0, =multiboot_receiver_listen + 1
-    bx  r0
+    b multiboot_receiver_listen
 .rxn_got:
     movs r0, #0x80
     strh r0, [r1]        @ clear IF bit7
@@ -979,8 +971,7 @@ mb_boot_tail:
     mov  r12, r7
     bx   lr
 .rx_crc_bad:                          @ CRC mismatch: drop image and restart transport detect
-    ldr r0, =multiboot_receiver_listen + 1
-    bx  r0
+    b multiboot_receiver_listen
 .rx_setreply:
     bl .rx_reply_now
     b  .rxn_loop

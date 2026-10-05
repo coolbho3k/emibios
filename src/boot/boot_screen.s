@@ -107,6 +107,7 @@ bs_call_arm:
 
 @ bs_trig_check: sample Start+Select.
 @ ACTION 2 sniffs JoyBus reset. Clobbers r0, r1.
+@ Returns Z clear if multiboot was requested.
 bs_trig_check:
     cmp  r7, #2
     beq  .btc_sniff
@@ -114,7 +115,6 @@ bs_trig_check:
     ldrh r1, [r0]
     movs r0, #(KEY_START | KEY_SELECT)
     ands r1, r0
-    cmp  r1, #0
     bne  .btc_ret
     @ Hide text immediately. The flag is acted on after animation/hold.
     ldr  r0, =MB_MODE_FLAG
@@ -138,7 +138,10 @@ bs_trig_check:
     ldr  r0, =multiboot_receiver_joybus + 1
     bx   r0
 .btc_ret:
-    bx lr
+    ldr  r0, =MB_MODE_FLAG
+    ldrb r0, [r0]
+    cmp  r0, #0
+    bx   lr
 bs_wait_vblank:
     ldr r0, =VCOUNT
 .bwv_a:
@@ -157,10 +160,7 @@ bs_draw_banner:
     movs r1, #MBRDY_LEN
     ldr  r2, =(MBRDY_TY*32 + MBRDY_TX)
     bl   bs_puts
-    ldr  r0, =(bs_str_mbrdy + 10)
-    movs r1, #3
-    movs r2, #MBRDY_TY
-    bl   bs_putr @ "RDY" right-aligned
+    bl   mbp_idle @ "RDY" right-aligned
     pop  {pc}
 
 @ bs_mbrdy_fade: fade in "MULTIBOOT RDY" just before listening. Clobbers r0-r5.
@@ -170,8 +170,7 @@ bs_mbrdy_fade:
 .mrf_step:
     ldr  r0, =bs_fade
     lsls r1, r4, #1
-    adds r0, r0, r1
-    ldrh r2, [r0]
+    ldrh r2, [r0, r1]
     ldr  r0, =PAL_TEXT
     strh r2, [r0]
     movs r5, #BS_FADE_FRAMES
@@ -184,15 +183,12 @@ bs_mbrdy_fade:
     blt  .mrf_step
     pop  {r4, r5, pc}
 
-@ bs_hold: exact BOOT_HOLD_FRAMES VBlank hold. Returns early for multiboot.
+@ bs_hold: exact BOOT_HOLD_FRAMES VBlank hold. Returns early for multiboot, with Z clear.
 bs_hold:
     push {r4, lr}
     ldr  r4, =BOOT_HOLD_FRAMES
 .bh_loop:
     bl   bs_trig_check
-    ldr  r0, =MB_MODE_FLAG
-    ldrb r0, [r0]
-    cmp  r0, #0
     bne  .bh_done
     bl   bs_wait_vblank
     subs r4, #1
@@ -215,14 +211,7 @@ boot_screen_show:
     strb r1, [r0]
     bl   bs_draw
     bl   bs_anim
-    ldr  r0, =MB_MODE_FLAG
-    ldrb r0, [r0]
-    cmp  r0, #0
-    bne  .bss_multiboot
     bl   bs_hold
-    ldr  r0, =MB_MODE_FLAG
-    ldrb r0, [r0]
-    cmp  r0, #0
     bne  .bss_multiboot
     @ Re-anchor to VBlank, then burn to the calibrated handoff cycle.
     ldr  r3, =boot_final_burn
@@ -254,18 +243,13 @@ boot_screen_show:
     strh r2, [r1, #4]
     strh r2, [r1, #36]
     bl   bs_wait_vblank
-    bl   bs_map_clear
-    movs r0, #BS_LOGO_T0
-    ldr  r1, =(LOGO_TY*32 + LOGO_TX)
-    movs r2, #BS_LOGO_TW
-    movs r3, #BS_LOGO_TH
-    bl   bs_place
+    bl   bs_place_logo
     bl   bs_draw_banner
     bl   bs_mbrdy_fade
     ldr  r0, =multiboot_receiver_listen + 1
     bx   r0
 
-@ bs_draw(r7=mode) -> 0 good, 1 bad header, 2 multiboot, 3 no cart, 4 debug B held.
+@ bs_draw(r7=mode) -> 0 good, 1 bad header, 2 multiboot, 4 debug B held.
 bs_draw:
     push {r4-r7, lr}
     ldr  r1, =BGPAL
@@ -322,12 +306,7 @@ bs_draw:
     ldr  r2, =bs_atlas_info
     ldr  r3, =swi_BitUnpack
     bl   bs_call_arm
-    bl   bs_map_clear
-    movs r0, #BS_LOGO_T0
-    ldr  r1, =(LOGO_TY*32 + LOGO_TX)
-    movs r2, #BS_LOGO_TW
-    movs r3, #BS_LOGO_TH
-    bl   bs_place
+    bl   bs_place_logo
     cmp  r7, #0
     bne  .bs_draw_mb
     bl   bs_hdr_check
@@ -344,27 +323,14 @@ bs_draw:
     movs r4, #4
     b    .bs_draw_fin
 .bs_draw_good_normal:
-    movs r3, #0
-    ldr  r0, =(CART + HDR_TITLE)
-    movs r1, #TITLE_LEN
-    ldr  r2, =(TITLE_TY*32 + TITLE_TX)
-    bl   bs_puts
-    ldr  r3, =PAL_BANK1
-    ldr  r0, =(CART + HDR_CODE)
-    movs r1, #CODE_LEN
-    ldr  r2, =(CODE_TY*32 + CODE_TX)
-    bl   bs_puts
+    ldr  r4, =PAL_BANK1
+    bl   bs_put_names
     movs r4, #0
     b    .bs_draw_fin
 .bs_draw_invalid:
-    cmp  r0, #2
-    beq  .bs_draw_nocart
     movs r0, #1
     bl   bs_draw_debug
     movs r4, #1
-    b    .bs_draw_fin
-.bs_draw_nocart:
-    movs r4, #3
     b    .bs_draw_fin
 .bs_draw_mb:
     bl   bs_draw_banner
@@ -383,61 +349,34 @@ bs_draw:
     adds r0, r4, #0
     pop  {r4-r7, pc}
 
-@ bs_hdr_check -> r0 = 0 good / 1 bad header / 2 no cart.
+@ bs_hdr_check -> r0 = 0 good / 1 bad header.
 bs_hdr_check:
-    push {r4-r7, lr}
+    push {lr}
     bl   bs_hdr_sum
     ldr  r1, =(CART + 0xbd)
     ldrb r3, [r1]
     adds r0, r0, r3
-    movs r3, #0xff
-    ands r0, r3
-    adds r7, r0, #0
+    lsls r0, r0, #24 @ low byte only
+    bne  .bhc_badhdr
     bl   bs_logo_hash
-    ldr  r6, =LOGO_HASH
-    cmp  r7, #0
-    bne  .bhc_invalid
-    cmp  r0, r6
-    bne  .bhc_invalid
+    ldr  r1, =LOGO_HASH
+    cmp  r0, r1
+    bne  .bhc_badhdr
     ldr  r1, =(CART + 0xb2)
     ldrb r1, [r1]
     cmp  r1, #0x96
-    bne  .bhc_invalid
+    bne  .bhc_badhdr
     movs r0, #0
-    pop  {r4-r7, pc}
-.bhc_invalid:
-    @ NO CART reads halfword[A] = (A>>1)&0xffff. Check three spread words.
-    ldr  r1, =CART
-    ldr  r3, [r1]
-    movs r2, #1
-    lsls r2, r2, #16
-    cmp  r3, r2
-    bne  .bhc_badhdr
-    ldr  r1, =(CART + 0x80)
-    ldr  r3, [r1]
-    movs r2, #0x41
-    lsls r2, r2, #16
-    adds r2, r2, #0x40
-    cmp  r3, r2
-    bne  .bhc_badhdr
-    ldr  r1, =(CART + 0xa0)
-    ldr  r3, [r1]
-    movs r2, #0x51
-    lsls r2, r2, #16
-    adds r2, r2, #0x50
-    cmp  r3, r2
-    bne  .bhc_badhdr
-    movs r0, #2
-    pop  {r4-r7, pc}
+    pop  {pc}
 .bhc_badhdr:
 .ifdef NO_HEADER_CHECK
     movs r0, #0
 .else
     movs r0, #1
 .endif
-    pop {r4-r7, pc}
+    pop {pc}
 
-.align 2
+@ bs_hdr_sum -> r0 = header checksum. Clobbers r1-r3.
 bs_hdr_sum:
     ldr  r1, =(CART + 0xa0)
     movs r2, #29
@@ -453,7 +392,7 @@ bs_hdr_sum:
     ands r0, r3
     bx   lr
 
-.align 2
+@ bs_logo_hash -> r0 = header logo hash. Clobbers r1-r3.
 bs_logo_hash:
     push {r5, lr}
     movs r0, #0
@@ -476,7 +415,6 @@ bs_logo_hash:
     pop  {r5, pc}
 
 @ bs_puts(r0=src, r1=count, r2=map offset, r3=bank): branchless per char.
-.align 2
 bs_puts:
     push {r4-r7, lr}
     adds r4, r0, #0
@@ -522,8 +460,22 @@ bs_puts:
     bne  .bs_ps
     pop  {r4-r7, pc}
 
+@ bs_put_names(r4=game code bank): draw title and game code. Clobbers r0-r3.
+bs_put_names:
+    push {lr}
+    movs r3, #0
+    ldr  r0, =(CART + HDR_TITLE)
+    movs r1, #TITLE_LEN
+    ldr  r2, =(TITLE_TY*32 + TITLE_TX)
+    bl   bs_puts
+    adds r3, r4, #0
+    ldr  r0, =(CART + HDR_CODE)
+    movs r1, #CODE_LEN
+    ldr  r2, =(CODE_TY*32 + CODE_TX)
+    bl   bs_puts
+    pop  {pc}
+
 @ bs_putr(r0=src, r1=count, r2=row): right align to the game code edge.
-.align 2
 bs_putr:
     lsls r2, r2, #5
     adds r2, #24
@@ -531,10 +483,10 @@ bs_putr:
     movs r3, #0
     b    bs_puts
 
-@ bs_put_okbad(r0=1 ok / 0 bad, r2=row): right-aligned "OK" or "BAD"
+@ bs_put_okbad(r0=0 ok / nonzero bad, r2=row): right-aligned "OK" or "BAD"
 bs_put_okbad:
     cmp  r0, #0
-    beq  .pob_bad
+    bne  .pob_bad
     ldr  r0, =bs_str_ok
     movs r1, #2
     b    bs_putr
@@ -565,37 +517,15 @@ bs_hex2:
     strb r0, [r4, #1]
     pop  {r4, r5, pc}
 
-@ bs_logo_ok -> r0 = 1 if cart logo hash matches. Clobbers r1-r3.
-bs_logo_ok:
-    push {lr}
-    bl   bs_logo_hash
-    ldr  r3, =LOGO_HASH
-    cmp  r0, r3
-    bne  .lok_bad
-    movs r0, #1
-    pop  {pc}
-.lok_bad:
-    movs r0, #0
-    pop  {pc}
-
 @ bs_draw_debug(r0=show_heading): LOGO/HEADER/name/code/CHECKSUM/FIX.
-.align 2
 bs_draw_debug:
     push {r4-r7, lr}
     adds r7, r0, #0
     ldr  r0, =BS_GMODE
     movs r1, #0
     str  r1, [r0]
-    movs r3, #0
-    ldr  r0, =(CART + HDR_TITLE)
-    movs r1, #TITLE_LEN
-    ldr  r2, =(TITLE_TY*32 + TITLE_TX)
-    bl   bs_puts
-    movs r3, #0
-    ldr  r0, =(CART + HDR_CODE)
-    movs r1, #CODE_LEN
-    ldr  r2, =(CODE_TY*32 + CODE_TX)
-    bl   bs_puts
+    movs r4, #0
+    bl   bs_put_names
     @ Bank 1 lets the hang blink CLEAN CART! independently.
     cmp  r7, #0
     beq  .dbg_no_heading
@@ -609,7 +539,9 @@ bs_draw_debug:
     movs r1, #4
     movs r2, #11
     bl   dbg_label
-    bl   bs_logo_ok
+    bl   bs_logo_hash
+    ldr  r3, =LOGO_HASH
+    subs r0, r0, r3
     movs r2, #11
     bl   bs_put_okbad
     bl   bs_hdr_sum
@@ -618,13 +550,7 @@ bs_draw_debug:
     ands r4, r1
     ldr  r1, =(CART + 0xbd)
     ldrb r5, [r1]
-    cmp  r4, r5
-    beq  .dbg_hdr_ok
-    movs r6, #0
-    b    .dbg_hdr_done
-.dbg_hdr_ok:
-    movs r6, #1
-.dbg_hdr_done:
+    subs r6, r4, r5
     ldr  r0, =bs_str_header
     movs r1, #3
     movs r2, #12
@@ -652,7 +578,6 @@ bs_draw_debug:
     pop  {r4-r7, pc}
 
 @ dbg_label(r0=str, r1=len, r2=row): render a debug label.
-.align 2
 dbg_label:
     lsls r2, r2, #5
     adds r2, #LOGO_TX
@@ -660,18 +585,16 @@ dbg_label:
     b    bs_puts
 
 @ dbg_hexrow(r0=byte_a, r1=byte_b, r2=row): render "AA/BB" right-aligned.
-.align 2
 dbg_hexrow:
     push {r1, r2, lr}
     ldr  r1, =BS_STRBUF
-    bl   bs_hex2
+    bl   bs_hex2 @ leaves r1 = dst
     movs r0, #0x2f
-    ldr  r1, =BS_STRBUF
     strb r0, [r1, #2]
     pop  {r0}
-    ldr  r1, =(BS_STRBUF + 3)
+    adds r1, r1, #3
     bl   bs_hex2
-    ldr  r0, =BS_STRBUF
+    subs r0, r1, #3
     movs r1, #5
     pop  {r2, r3}
     mov  lr, r3
@@ -899,7 +822,6 @@ mbp_finish:
     str  r1, [r0, #4]
     str  r1, [r0, #8]
     bx   lr
-.ltorg
 
 @ bs_fill16(r0=dst, r1=count, r2=hword val): shared 16-bit fill. Clobbers r0-r1.
 .align 2
@@ -912,39 +834,33 @@ bs_fill16:
     bx   lr
 
 @ bs_map_clear: zero the 32x32 tilemap.
-.align 2
 bs_map_clear:
     ldr  r0, =SCREEN_BASE
     ldr  r1, =(32*32)
     movs r2, #0
     b    bs_fill16
 
-@ bs_place(r0=first tile id, r1=map offset, r2=tw, r3=th): lay a tile block.
-.align 2
-bs_place:
-    push {r4-r7, lr}
-    ldr  r4, =SCREEN_BASE
-    lsls r1, r1, #1
-    adds r4, r4, r1
-    adds r5, r3, #0
+@ bs_place_logo: clear the tilemap and place the logo.
+bs_place_logo:
+    push {r4-r6, lr}
+    bl   bs_map_clear
+    movs r0, #BS_LOGO_T0
+    ldr  r4, =(SCREEN_BASE + (LOGO_TY*32 + LOGO_TX)*2)
+    movs r5, #BS_LOGO_TH
 .bs_pr:
-    adds r6, r2, #0
+    movs r6, #BS_LOGO_TW
 .bs_pc:
     strh r0, [r4]
     adds r4, r4, #2
     adds r0, r0, #1
     subs r6, r6, #1
     bne  .bs_pc
-    movs r7, #32
-    subs r7, r7, r2
-    lsls r7, r7, #1
-    adds r4, r4, r7
+    adds r4, #((32 - BS_LOGO_TW)*2)
     subs r5, r5, #1
     bne  .bs_pr
-    pop  {r4-r7, pc}
+    pop  {r4-r6, pc}
 
 @ bs_cleanup: restore display, DMA, palette, and VRAM state.
-.align 2
 bs_cleanup:
     push {lr}
     ldr  r1, =DMA3SAD
@@ -952,10 +868,14 @@ bs_cleanup:
     str  r2, [r1, #0]
     str  r2, [r1, #4]
     str  r2, [r1, #8]
-    ldr  r1, =DMA0SAD
+    subs r1, #(DMA3SAD - DMA0SAD)
+    @ Leave Timer0 stopped at 0xff8a. Some games seed an RNG from it.
+    ldr  r0, =((0x83 << 16) | 0xff8a)
+    str  r0, [r1, #(REG_TM0CNT_L - DMA0SAD)]
     str  r2, [r1, #0]
     str  r2, [r1, #4]
     str  r2, [r1, #8]
+    str  r2, [r1, #(REG_TM0CNT_L - DMA0SAD)]
     ldr  r1, =MMIO
     movs r2, #0x80
     strh r2, [r1, #0]
@@ -982,11 +902,8 @@ bs_cleanup:
 bs_anim:
     push {r4-r7, lr}
     adds r7, r0, #0
-    @ palette[0]/[1] = gray. [2]/[18]/[BS_PURCOL] were set by bs_draw.
-    ldr  r1, =BGPAL
-    ldr  r2, =COL_GRAY
-    strh r2, [r1, #0]
-    strh r2, [r1, #2]
+    @ Palette was set by bs_draw.
+    ldr r1, =BGPAL
     @ ACTION 1 text is static. CLEAN CART! blinks after convergence.
     cmp r7, #1
     bne .an_phase_reset
@@ -1014,15 +931,13 @@ bs_anim:
     movs r2, #0
     bl   bs_fill16
     @ Set HBlank DMA dst+count once. bs_frame re-arms src+enable.
-    ldr  r6, =DMA3SAD
-    ldr  r1, =(BGPAL + 2)
-    str  r1, [r6, #4]
-    movs r1, #1
-    strh r1, [r6, #8]
     ldr  r6, =DMA0SAD
+    ldr  r1, =(BGPAL + 2)
+    str  r1, [r6, #(DMA3SAD + 4 - DMA0SAD)]
     ldr  r1, =BG0HOFS
     str  r1, [r6, #4]
     movs r1, #1
+    strh r1, [r6, #(DMA3SAD + 8 - DMA0SAD)]
     strh r1, [r6, #8]
     ldr  r5, =BS_REVB
     movs r4, #0
@@ -1051,8 +966,7 @@ an_fade8:
     ldr  r6, [sp, #0]
     ldr  r2, =bs_fade
     lsls r1, r4, #1
-    adds r2, r2, r1
-    ldrh r3, [r2]
+    ldrh r3, [r2, r1]
     @ ACTION 4 snaps palette[2] to black once diagnostics own the screen.
     ldr r1, =PAL_TEXT
     cmp r6, r1
@@ -1086,10 +1000,9 @@ an_fade8:
     cmp  r4, #BS_LOGO_LINES
     blt  .an_conv
     @ Band is uniformly BS_PURCOL, so disabling DMAs is visually seamless.
-    ldr  r6, =DMA3SAD
-    movs r1, #0
-    strh r1, [r6, #0xa]
     ldr  r6, =DMA0SAD
+    movs r1, #0
+    strh r1, [r6, #(DMA3SAD + 0xa - DMA0SAD)]
     strh r1, [r6, #0xa]
     ldr  r2, =BG0HOFS
     strh r1, [r2]
@@ -1099,39 +1012,28 @@ an_fade8:
     strh r2, [r1, #2]
     cmp  r7, #1
     beq  .an_hang
-    cmp  r7, #3
-    beq  .an_hang
     pop  {r4-r7, pc}
 .an_hang:
     @ Hang screens still sample Start+Select for multiboot.
-    ldr  r0, =(BGPAL + 36)
-    ldr  r1, =COL_BLACK
-    strh r1, [r0]
+    movs r5, #0
+.ah_blink:
     movs r4, #0
-    movs r5, #1
+    movs r1, #1
+    eors r5, r1 @ Z = hidden phase, kept across the ldr's
+    ldr  r0, =(BGPAL + 36)
+    ldr  r1, =COL_GRAY
+    beq  .ah_set
+    ldr  r1, =COL_BLACK
+.ah_set:
+    strh r1, [r0]
 .ah_loop:
     bl   bs_trig_check
-    ldr  r0, =MB_MODE_FLAG
-    ldrb r0, [r0]
-    cmp  r0, #0
     bne  .ah_to_multiboot
     bl   bs_wait_vblank
     adds r4, #1
     cmp  r4, #BS_BLINK_FRAMES
     blt  .ah_loop
-    movs r4, #0
-    movs r1, #1
-    eors r5, r1
-    ldr  r0, =(BGPAL + 36)
-    cmp  r5, #0
-    beq  .ah_hide
-    ldr  r1, =COL_BLACK
-    strh r1, [r0]
-    b    .ah_loop
-.ah_hide:
-    ldr  r1, =COL_GRAY
-    strh r1, [r0]
-    b    .ah_loop
+    b    .ah_blink
 .ah_to_multiboot:
     pop {r4-r7, pc}
 
@@ -1141,20 +1043,17 @@ bs_frame:
     bl   bs_trig_check
     bl   bs_wait_vblank
     bl   fill_copper
-    ldr  r6, =DMA3SAD
-    movs r1, #0
-    strh r1, [r6, #0xa]
-    ldr  r1, =BS_COPPER
-    str  r1, [r6, #0]
-    ldr  r1, =DMA_HBL_PAL
-    strh r1, [r6, #0xa]
     bl   fill_wobble
     ldr  r6, =DMA0SAD
     movs r1, #0
+    strh r1, [r6, #(DMA3SAD + 0xa - DMA0SAD)]
     strh r1, [r6, #0xa]
+    ldr  r1, =BS_COPPER
+    str  r1, [r6, #(DMA3SAD - DMA0SAD)]
     ldr  r1, =BS_WOBBLE
     str  r1, [r6, #0]
     ldr  r1, =DMA_HBL_PAL
+    strh r1, [r6, #(DMA3SAD + 0xa - DMA0SAD)]
     strh r1, [r6, #0xa]
     pop  {pc}
 
@@ -1180,7 +1079,6 @@ bs_bcheck:
     pop  {pc}
 
 @ fill_copper: rebuild logo-band palette[1] and stamp wipes.
-.align 2
 fill_copper:
     push {r4-r7, lr}
     ldr  r6, =sine_lut
@@ -1248,7 +1146,6 @@ gr_chan:
     bx    lr
 
 @ fill_wobble: rebuild logo band BG0HOFS offsets.
-.align 2
 fill_wobble:
     push {r4-r7, lr}
     ldr  r6, =sine_lut
@@ -1299,7 +1196,7 @@ bs_atlas_info:
     .byte 4
     .word 1                             @ atlas glyph ink, palette index 2
 bs_str_mbrdy:
-    .ascii "MULTIBOOT RDY"
+    .ascii "MULTIBOOT"
 bs_str_clean:
     .ascii "CLEAN CART!"
 bs_str_logo:

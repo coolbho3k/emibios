@@ -32,9 +32,9 @@ swi_SoundDriverVSyncOff:
     nop
     movs r2, #0
     str  r2, [r0]
-    ldr  r1, =REG_DMA1CNT_L
-    str  r2, [r1]
-    str  r2, [r1, #0x0c]
+    ldr  r1, =REG_DMA1CNT_H
+    strh r2, [r1]
+    strh r2, [r1, #0x0c]
     strb r2, [r0, #0x04]
     movs r1, #0x35
     lsls r1, r1, #4
@@ -58,14 +58,14 @@ swi_SoundDriverVSyncOff:
 @ Return: nothing defined; r0/r2 handler scratch.
 @
 @ The call is unconditional and does not read SoundInfo. It normally follows VSyncOff +
-@ VBlankIntrWait, so the channels are already stopped. Writes 0xb6000000 (enable | FIFO start
-@ timing | 32-bit | repeat) to DMA1CNT and DMA2CNT. SAD/DAD and the SoundInfo work area are
-@ left untouched.
+@ VBlankIntrWait, so the channels are already stopped. Writes 0xb600 (enable | FIFO start
+@ timing | 32-bit | repeat) to DMA1CNT_H and DMA2CNT_H. SAD/DAD, the word counts and the
+@ SoundInfo work area are left untouched.
 swi_SoundDriverVSyncOn:
-    ldr  r0, =REG_DMA1CNT_L
+    ldr  r0, =REG_DMA1CNT_H
     movs r2, #0xb6
-    lsls r2, r2, #24
+    lsls r2, r2, #8
     @ Timing note: build the enable word by shift
-    str r2, [r0]
-    str r2, [r0, #0x0c]
-    bx  lr
+    strh r2, [r0]
+    strh r2, [r0, #0x0c]
+    bx   lr

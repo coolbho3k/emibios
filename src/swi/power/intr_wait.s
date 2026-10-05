@@ -36,8 +36,10 @@ swi_IntrWait:
     ldrh r2, [r12, #-8]
     ands r0, r1, r2 @ r0 = matched flags. ands sets Z so an interrupted CPSR shows it
     bic  r2, r2, r0
-    strh r2, [r12, #-8]
+    @ IME = 1 first: a pending IRQ is taken here and its flag dropped by the write back.
+    nop
     strb r4, [r12, #(REG_IME - MMIO_BASE)]
+    strh r2, [r12, #-8]
 .intr_wait_halt:
     nop @ Timing note: 1 cyc acceptance slot between IME = 1 and the halt
     strb r3, [r12, #(REG_HALTCNT - MMIO_BASE)]

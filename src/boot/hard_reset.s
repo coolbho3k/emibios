@@ -83,8 +83,6 @@ exception_reset:
     @ Boot screen: draw logo + credits, hold, clean up. Handoff stays at the same PPU phase
     @ at cycle 76001675. It re-anchors to the PPU grid and recal burns the delta.
     bl boot_screen_entry
-    @ Leave TM0CNT_L at 0. Matching the boot-sound stopped value (0xff8a) would
-    @ briefly enable Timer0, and that perturbs games that never read it.
     @ Cart handoff: zeroed visible registers, then enter the cart at 0x08000000.
     msr cpsr_cf, #MODE_SYS
     mov r0, #0

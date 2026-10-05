@@ -179,10 +179,9 @@ swi_LZ77UnCompWrite16bit:
     @ 8 odd, the eors toggle provides the parity flags), r12 = flag bit mask, lr = scratch.
     @ Timing note: the copy loop has a fixed two-byte period, so a mid copy IRQ lands at a
     @ known point.
-    @ Frame image: {r4-r7, s8, s9, s10, lr} where s8-s10 hold the caller's r8-r10 during the call
-    @ and are zeroed before return (the post-image is three zero locals).
+    @ Frame: {r4-r10, lr} only, nothing below it.
     stmfd            sp!, {r4-r10, lr}
-    sub              sp, sp, #12
+    nop
     ldr              r12, [r0], #4
     movs             r10, r12, lsr #8
     mov              r8, #0
@@ -259,9 +258,9 @@ swi_LZ77UnCompWrite16bit:
     .rept LZH_CPF
     nop
     .endr
-    orr  r8, r8, r9, lsl r3
-    strh r9, [sp]
-    mov  lr, lr, lsl lr
+    orr r8, r8, r9, lsl r3
+    mov lr, lr, lsl lr
+    mov lr, lr, lsl lr
     .rept LZH_CPG
     nop
     .endr
@@ -280,8 +279,7 @@ swi_LZ77UnCompWrite16bit:
     .endr
     mov   r12, #0
     mov   r2, #0
-    stmia sp!, {r2, r10, r12}
-    @ zeros to the locals below the frame, then restore and return
+    umlal r2, r12, r12, r12 @ 4 cycle pad, no memory access
     ldmia sp!, {r4-r10, lr}
     bx    lr
 
@@ -294,7 +292,7 @@ swi_LZ77UnCompWrite16bit:
     @ before the guard. r3 is dispatcher-scratch, so this is end state
     @ only.
     mov   r3, #0
-    add   sp, sp, #12
+    nop
     ldmia sp!, {r4-r10, lr}
     bx    lr
 .lzh_block_br:

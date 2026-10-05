@@ -106,8 +106,9 @@ swi_RegisterRamReset:
     bl   t_cfs
     subs r1, #0x20       @ base 0x04000060 (all offsets below fit a Thumb strh imm)
     movs r2, #0
-    strh r2, [r1, #0x20] @ SOUNDCNT_L/_H/_X = 0
-    strh r2, [r1, #0x22]
+    strh r2, [r1, #0x20] @ SOUNDCNT_L/_X = 0, SOUNDCNT_H = 0x000e
+    movs r3, #0x0e
+    strh r3, [r1, #0x22]
     strh r2, [r1, #0x24]
     movs r3, #0x80
     strh r3, [r1, #0x24] @ then SOUNDCNT_X = 0x80: sound enable on, so Wave RAM below is writable
@@ -138,7 +139,6 @@ swi_RegisterRamReset:
     strh r3, [r1, #0x28]
     movs r3, #0x70
     strh r3, [r1, #0x10] @ SOUND3CNT_L = 0x70
-    movs r2, #0
     strh r2, [r1, #0x24] @ SOUNDCNT_X sound enable back off
     TPAD TR_SND_L, TR_SND_N
 .t_no_snd:

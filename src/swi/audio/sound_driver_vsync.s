@@ -24,16 +24,16 @@ swi_SoundDriverVSync:
     bgt  .vsync_ret
     ldrb r1, [r0, #0x0b]
     strb r1, [r0, #0x04]
-    ldr  r1, =REG_DMA1CNT_L
+    ldr  r1, =REG_DMA1CNT_H
     movs r2, #0
-    str  r2, [r1]
+    strh r2, [r1]
     @ Both FIFOs need the edge so the DMA reloads SAD to the buffer base
     @ on restart. Without it, the left FIFO keeps its drifted SAD and
     @ plays garbage.
-    str r2, [r1, #0x0c]
-    ldr r2, =0xb6000000
-    str r2, [r1]
-    str r2, [r1, #0x0c]
+    strh r2, [r1, #0x0c]
+    ldr  r2, =0xb600
+    strh r2, [r1]
+    strh r2, [r1, #0x0c]
     nop @ Timing note: pad the reload+restart path
     nop
 .vsync_ret:
