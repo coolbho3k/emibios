@@ -13,7 +13,7 @@ DenSinH.
 
 ### Features
 
-- Runs most commercial games
+- Runs the vast majority of commercial games, with no known titles currently failing to boot
 - Compatible with most software emulators and FPGA cores
 - Syncs with the retail BIOS in TAS playback in many games
 - Most SWIs are accurate in both result and register/flag side effects
@@ -51,17 +51,18 @@ Build a BIOS accuracy test ROM:
 
 This is a research project and should not be considered production-ready just yet. emibios is not
 perfect yet. Although I have tried to fix all crashes I've found so far, many games will still
-desync in TAS playback, and I can't test every game and homebrew out there. However, the goal is to
-eventually get as close in observable functionality to the retail BIOS as possible. This means fixing
-any crashes that are found and aiming for determinism given the same sequence of inputs in games as
-the retail BIOS.
+desync in TAS playback, and I can't test every game and homebrew out there from start to finish.
+However, the goal is to eventually get as close in observable functionality to the retail BIOS as
+possible. This means fixing any crashes that are found and aiming for determinism given the same
+sequence of inputs in games as the retail BIOS.
 
 Please help me test commercial games, particularly those that use the sound SWIs and those that
 exercise Multiboot functionality. Note that games that are historically difficult to emulate accurately
 are not necessarily difficult to get running on an open BIOS replacement, and vice versa.
 
 Some of the SWI code seems unconventional or inefficient. Most of the time, this was a result of
-efforts to match original timing.
+efforts to match original timing, which often requires tricks like padding with `nop`s (among many
+others).
 
 ### AI Disclosure
 
