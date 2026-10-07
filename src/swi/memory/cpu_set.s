@@ -7,7 +7,7 @@
 @
 @ Source-region guard: a source with no bit set in 0x0e000000 is in the BIOS region, so the
 @ transfer is skipped and the destination left untouched. Each routine places the guard
-@ differently.
+@ differently. CpuSet also skips when src + count * 4 has none of those bits set.
 @
 @ Timing note: each path splits its nonloop pad into a PRE pad before the first store and a POST
 @ pad after the last, held so PRE + POST is constant. The in-loop pads set the per element period.
@@ -43,6 +43,11 @@ swi_CpuSet:
     lsls r4, r2, #11
     lsrs r4, r4, #11
     beq  .cs_count0
+    lsls r5, r4, #2
+    adds r5, r0, r5
+    lsls r5, r5, #4
+    lsrs r5, r5, #29
+    beq  .cs_end_skip
     lsls r5, r2, #5
     bmi  .cs_32
     @ ---- 16-bit (r0/r1 unchanged) ----
@@ -54,7 +59,7 @@ swi_CpuSet:
     mov  lr, r3
     movs r5, #0
     subs r5, #2
-    .set PRE16C, 13
+    .set PRE16C, 8
     .rept PRE16C
     nop
     .endr
@@ -65,7 +70,7 @@ swi_CpuSet:
     strh r3, [r1, r5]
     nop
     bne  .cs_copy16_loop
-    .set BUD16C, 13
+    .set BUD16C, 8
     .rept (BUD16C - PRE16C)
     nop
     .endr
@@ -77,7 +82,7 @@ swi_CpuSet:
     movs r5, #0
     subs r5, #2
     ldrh r3, [r0]
-    .set PRE16F, 9
+    .set PRE16F, 4
     .rept PRE16F
     nop
     .endr
@@ -87,7 +92,7 @@ swi_CpuSet:
     strh r3, [r1, r5]
     nop
     bne  .cs_fill16_loop
-    .set BUD16F, 9
+    .set BUD16F, 4
     .rept (BUD16F - PRE16F)
     nop
     .endr
@@ -100,7 +105,7 @@ swi_CpuSet:
     adds r5, r1, r4
     subs r3, r5, #4
     mov  r12, r3
-    .set PRE32C, 10
+    .set PRE32C, 5
     .rept PRE32C
     nop
     .endr
@@ -110,7 +115,7 @@ swi_CpuSet:
     ldmia r0!, {r3}
     stmia r1!, {r3}
     bne   .cs_copy32_loop
-    .set BUD32C, 10
+    .set BUD32C, 5
     .rept (BUD32C - PRE32C)
     nop
     .endr
@@ -123,7 +128,7 @@ swi_CpuSet:
     subs  r3, r5, #4
     mov   r12, r3
     ldmia r0!, {r3}
-    .set PRE32F, 6
+    .set PRE32F, 1
     .rept PRE32F
     nop
     .endr
@@ -133,7 +138,7 @@ swi_CpuSet:
     cmp   r1, r12
     stmia r1!, {r3}
     bne   .cs_fill32_loop
-    .set BUD32F, 9
+    .set BUD32F, 4
     .rept (BUD32F - PRE32F)
     nop
     .endr
@@ -144,6 +149,9 @@ swi_CpuSet:
     movs r3, #0x17
     lsls r3, r3, #4 @ r3 = 0x170 residue
     bx   r12
+.cs_end_skip:
+    nop
+    b .cs_end
 .cs_count0:
     .set CS0, 4
     .rept CS0
