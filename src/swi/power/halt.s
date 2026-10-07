@@ -5,7 +5,11 @@
 @ Return: r0-r3 untouched
 .arm
 swi_Halt:
-    mov  r11, #0
-    mov  r12, #MMIO_BASE
-    strb r11, [r12, #(REG_HALTCNT - MMIO_BASE)]
+    mov r2, #0
+    mov r12, #MMIO_BASE
+    @ Timing note: 3 cycles before the halt write set which IRQs still wake it.
+    nop
+    nop
+    nop
+    strb r2, [r12, #(REG_HALTCNT - MMIO_BASE)]
     bx   lr
