@@ -19,35 +19,40 @@
 @
 @ Register roles: r0 src ptr, r1 dst ptr, r3 word accumulator, r4 src end, r5 offset,
 @ r6 src_width, r7 dst_width, r8 output bit position, r9 src mask, r10 current byte,
-@ r11 bits left in byte, r12 unit/out, lr zero-flag mask.
+@ r11 bits left in byte, r12 unit/out. r9 bit31 = zero flag.
 @
-@ Cycles = DONE + BYTE*bytes + (UNIT+NZ)*packed + UNIT*skipped. NZ sits in the pack code,
-@ so a skipped unit (value 0 with the zero-flag clear) is cheaper, since it leaves a zero
-@ and skips the pack.
+@ Cycles = DONE + BYTE*bytes + (UNIT+2)*packed + UNIT*skipped.
 .arm
     .set BUP_BYTE,    6
     .set BUP_UNIT,    5
-    .set BUP_NZ,      2
     .set BUP_WORD,    0
     .set BUP_DONE,    4 @ nops on the offset!=0 done path (after cmp/beq). offset==0 skips them -> -2
-    .set BUP_DONE_RS, 7
+    .set BUP_DONE_RS, 1
+    .set BUP_PRE,     3
 swi_BitUnpack:
     push {r4-r11, lr}
     ldrh r4, [r2]
+    cmp  r4, #0
+    beq  .bup_guardpad
     @ Dual source region guard (src and src+len, len from the info struct, src not advanced).
     decomp_guard_arm r0, .bup_guardpad, r4
 .bup_afterguard:
     ldrb r6, [r2, #2]
     ldrb r7, [r2, #3]
     ldr  r5, [r2, #4]
-    and  lr, r5, #BIT31
+    and  r9, r5, #BIT31
     bic  r5, r5, #BIT31
-    mov  r9, #1
-    mov  r9, r9, lsl r6
+    mov  r12, #1
+    add  r9, r9, r12, lsl r6
     sub  r9, r9, #1
     add  r4, r0, r4
     mov  r3, #0
     mov  r8, #0
+    ldr  lr, [sp, #32]
+    .rept BUP_PRE
+    mov r11, r11, lsl r11
+    .endr
+    nop
 .bup_byte:
     cmp  r0, r4
     bge  .bup_done
@@ -58,17 +63,14 @@ swi_BitUnpack:
     .endr
 .bup_unit:
     ands  r12, r10, r9
-    cmpeq lr, #0
-    add   r12, r12, r5
+    tsteq r9, #BIT31
+    addne r12, r12, r5
     mov   r10, r10, lsr r6
     .rept BUP_UNIT
     nop
     .endr
-    beq .bup_adv
-    orr r3, r3, r12, lsl r8
-    .rept BUP_NZ
-    nop
-    .endr
+    orr   r3, r3, r12, lsl r8
+    ldrne lr, [sp, #32]
 .bup_adv:
     add r8, r8, r7
     cmp r8, #32
@@ -98,6 +100,6 @@ swi_BitUnpack:
 .bup_badsrc:                    @ shared return. On guard fail, dst untouched and r0 = src
     pop {r4-r11, lr}
     bx  lr
-.bup_guardpad:                  @ guard only: pad the skip path, then rejoin the shared return
-    guard_pad 11 @ +11 plus the rejoin branch (3) -> 128, matches the retail BIOS
+.bup_guardpad:                  @ guard or len 0: pad the skip path, then rejoin the shared return
+    guard_pad 9 @ +9 and the rejoin branch (3): 128 total
     b         .bup_badsrc

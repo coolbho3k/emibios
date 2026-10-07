@@ -15,6 +15,7 @@ const timing_src align(4) = blk: {
     break :blk d;
 };
 const info_timing: [8]u8 align(4) = codec.bitUnpackInfo(64, 1, 8, 0x10);
+const info_len0: [8]u8 align(4) = codec.bitUnpackInfo(0, 1, 8, 0);
 const guard_info: [8]u8 align(4) = codec.bitUnpackInfo(8, 1, 8, 0);
 const expected_timing = ctBitunpack(&timing_src, 1, 8, 0x10);
 
@@ -115,15 +116,16 @@ fn guard(t: anytype, a: std.mem.Allocator) !void {
 }
 
 fn degenerate(t: anytype, a: std.mem.Allocator) !void {
-    const info: [8]u8 align(4) = codec.bitUnpackInfo(0, 1, 8, 0);
     const src = [_]u8{0xFF} ** 4;
     var d0 = [_]u8{0xAB} ** 8;
-    a.free(try swi.runMem(a, &.{.{ .src = &src, .dest = &d0, .r2_ptr = &info }}));
+    const cyc = try swi.runMem(a, &.{.{ .src = &src, .dest = &d0, .r2_ptr = &info_len0 }});
+    defer a.free(cyc);
     var n: u32 = 0;
     for (d0) |b| {
         if (b != 0) n += 1;
     }
     try t.checkEqual("len0 nowrite", @as(u32, 0), n);
+    try t.checkEqual("len0 cyc", @as(u32, 126), cyc[0]);
 }
 
 pub fn run(t: anytype, a: std.mem.Allocator) !void {
