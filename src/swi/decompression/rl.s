@@ -18,7 +18,7 @@
 @ cycle pads that cost the same in every region
 @ Each pad is one per (call / block / byte), adjusting one term of the cost. The store cost
 @ (the only region dependent part) is untouched, so one set of pads holds across all regions.
-    .set RL8_FIRST,   7
+    .set RL8_FIRST,   4
     .set RL8_LITBLK,  0
     .set RL8_RUNBLK,  0
     .set RL8_LITBYTE, 0
@@ -38,53 +38,37 @@
 @ Blocks always run in full: an exact stream writes `size` bytes. A final block
 @ more than the remainder overshoots past `size` (same as Write16bit below).
 swi_RLUnCompReadNormalWrite8bit:
-    push  {r4, r5, r6, r7, lr}
-    ldmia r0!, {r2}
-    lsrs  r2, r2, #8
-    adds  r7, r2, #0
+    push            {r4, r5, r6, r7, lr}
+    ldmia           r0!, {r2}
     nop
-    beq   .rl8_size0
+    lsrs            r2, r2, #8
+    beq             .rl8_size0
+    guard_pad_thumb 3
+    adds            r7, r2, #0
     @ Dual source region guard (src+4 and src+4+size). r0 = src+4, r2 = size.
     @ r3 = mask scratch (clobbered to 0x170 anyway), r6 = src end temp (pushed but otherwise unused).
-    decomp_guard_thumb r0, r3, .rl8_badsrc, r2, r6
-    guard_pad_thumb    RL8_FIRST
-    b                  .rl8_block
+    lsls            r3, r0, #4
+    guard_pad_thumb 3
+    lsrs            r3, r3, #29
+    beq             .rl8_badsrc
+    adds            r6, r0, r2
+    lsls            r6, r6, #4
+    lsrs            r6, r6, #29
+    beq             .rl8_badsrc
+    guard_pad_thumb RL8_FIRST
 @ Overrun tolerant: a stream's final block may declare more bytes than remain. The block still
-@ runs in full. The header side subtract leaves r7 (remaining, IRQ-visible) negative and the
-@ asr/bic pair clamps it to 0, so the next block check exits instead of spinning on a wrapped
-@ counter.
-.rl8_run:
-    lsls r3, r4, #25
-    lsrs r3, r3, #25
-    adds r3, #3
-    subs r7, r3
-    asrs r2, r7, #31
-    bics r7, r2
-    nop
-    ldrb r5, [r0]
-    adds r0, #1
-    .rept RL8_RUNBLK
-    nop
-    .endr
-.rl8_runl:
-    strb r5, [r1]
-    adds r1, #1
-    .rept RL8_RUNBYTE
-    nop
-    .endr
-    subs r3, #1
-    bne  .rl8_runl
+@ runs in full and leaves r7 (bytes remaining) negative. The signed block check exits.
 .rl8_block:
     cmp  r7, #0
-    beq  .rl8_done
+    ble  .rl8_done
     ldrb r4, [r0]
     adds r0, #1
-    lsrs r2, r4, #7
+    lsls r3, r4, #25
+    lsrs r3, r3, #25
+    cmp  r3, r4
     bne  .rl8_run
-    adds r3, r4, #1
+    adds r3, #1
     subs r7, r3
-    asrs r2, r7, #31
-    bics r7, r2
     .rept RL8_LITBLK
     nop
     .endr
@@ -99,12 +83,28 @@ swi_RLUnCompReadNormalWrite8bit:
     subs r3, #1
     bne  .rl8_lit
     b    .rl8_block
+.rl8_run:
+    adds r3, #3
+    subs r7, r3
+    ldrb r5, [r0]
+    adds r0, #1
+    .rept RL8_RUNBLK
+    nop
+    .endr
+.rl8_runl:
+    strb r5, [r1]
+    adds r1, #1
+    .rept RL8_RUNBYTE
+    nop
+    .endr
+    subs r3, #1
+    bne  .rl8_runl
+    b    .rl8_block
 .rl8_size0:
-    nop
+    guard_pad_thumb 13
+    b               .rl8_done
 .rl8_badsrc:                @ guard only: source in BIOS region. Pad then fall into the shared return.
-    nop
-    guard_pad_thumb 4
-    guard_pad_thumb 9 @ skip path cycle pad 1+4+9 -> 123
+    guard_pad_thumb 8 @ skip path cycle pad -> 123, matches the retail BIOS
 .rl8_done:
     .rept RL8_EXIT
     nop

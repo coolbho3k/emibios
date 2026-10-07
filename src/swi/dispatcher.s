@@ -46,13 +46,12 @@ exception_swi:
     mov   lr, pc
     bx    r12
     ldmfd sp!, {r2, lr}
+    nop
     msr   cpsr_fc, #(MODE_SVC | IRQ_DISABLE | FIQ_DISABLE)
     ldmfd sp!, {r11}
     msr   spsr_fc, r11
     ldmfd sp!, {r11, r12, lr}
-    @ Timing note: exit is 1 cyc longer than minimal.
-    nop
-    movs pc, lr
+    movs  pc, lr
     @ Bus note: after a SWI returns, code that reads the BIOS region gets the last opcode the BIOS
     @ prefetched. Pin 0xe3a02004 (`mov r2, #4`), as some games may read it.
     .word 0xe3a02004

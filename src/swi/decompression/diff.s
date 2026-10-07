@@ -143,69 +143,55 @@ swi_Diff8bitUnfilterWrite8bit:
 @ output bytes via strh). floor(size/2) halfwords are written. An odd trailing byte is still
 @ read (prev advances) but not written.
 @
-@ The pads cost the same in every memory region. size 0 takes a lighter branch path, even
-@ sizes add a per pair loop pad, and an odd tail byte adds its own pad.
-    .set D8W16_FIX,   1
-    .set D8W16_ENTRY, 5
-    .set D8W16_S0,    3
-    .set D8W16_LOOP,  21
-    @ Timing note: part of the per pair pad sits before the strh, delaying each store without
-    @ changing the per pair total.
-    .set D8W16_PRE,   16
-    .set D8W16_ODD,   3
-    .set D8W16_TAIL,  7
-    .set D8W16_SKIP,  14
+    .set D8W16_SKIP, 7
 swi_Diff8bitUnfilterWrite16bit:
-    stmfd sp!, {r4-r7, lr}
-    ldmia r0!, {r2}
-    lsr   r2, r2, #8
-    @ Dual source region guard (src+4 and src+4+size) via the shared macro. r12 = source end temp
-    @ (lr is the live return). D8W16_FIX accounts for the guard's two extra cycles.
-    decomp_guard_arm r0, .d8w16_skip, r2, r12
-.d8w16_afterguard:
+    stmfd     sp!, {r4-r7, lr}
+    ldmia     r0!, {r2}
+    lsr       r2, r2, #8
     mov       r3, #0x170 @ SWI-dispatch residue
     mov       r12, #0
-    guard_pad D8W16_FIX
-    cmp       r2, #2
-    blt       .d8w16_short
-    guard_pad D8W16_ENTRY
-.d8w16_loop:
-    ldrb r11, [r0], #1
-    add  r12, r12, r11
-    and  r4, r12, #0xff
-    ldrb r11, [r0], #1
-    add  r12, r12, r11
-    orr  r4, r4, r12, lsl #8
-    .rept D8W16_PRE
+    guard_pad 3
+    @ Dual source region guard (src+4 and src+4+size). r5 = source end temp.
+    tst       r0, #SRC_REGION_MASK
+    beq       .d8w16_skip
+    guard_pad 3
+    cmp       r2, #0
+    beq       .d8w16_zero
+    add       r5, r0, r2
+    tst       r5, #SRC_REGION_MASK
+    beq       .d8w16_skip
+    mov       r6, #8
+    guard_pad 3
     nop
-    .endr
-    strh r4, [r1], #2
-    .rept (D8W16_LOOP - D8W16_PRE + 1)
     nop
-    .endr
-    sub     r2, r2, #2
-    cmp     r2, #1
-    bhi     .d8w16_loop
-    ldmfdcc sp!, {r4-r7} @ even size: return here
-    ldmfdcc sp!, {lr}
-    bxcc    lr
-.d8w16_odd:
-    guard_pad D8W16_ODD
     ldrb      r11, [r0], #1
     add       r12, r12, r11
-    guard_pad D8W16_TAIL
+    and       r4, r12, #0xff
+.d8w16_loop:
+    subs r2, r2, #1
+    beq  .d8w16_done
+    ldrb r11, [r0], #1
+    add  r12, r12, r11
+    and  r5, r12, #0xff
+    nop
+    nop
+    orr  r4, r4, r5, lsl r6
+    eors r6, r6, #8
+    nop
+    nop
+    bne  .d8w16_loop
+    strh r4, [r1], #2
+    mov  r4, #0
+    nop
+    b    .d8w16_loop
 .d8w16_done:
     ldmfd sp!, {r4-r7}
     ldmfd sp!, {lr}
     bx    lr
-.d8w16_short:
-    cmp       r2, #0
-    bne       .d8w16_odd
-    guard_pad D8W16_S0
-    b         .d8w16_done
 .d8w16_skip:
     guard_pad D8W16_SKIP
-    mov       r3, #0x170
+.d8w16_zero:
+    guard_pad 3
     b         .d8w16_done
 
 @ Diff16bitUnfilter (SWI 0x18): 16-bit diffs, halfword writes.
