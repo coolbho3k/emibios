@@ -272,6 +272,9 @@ bs_draw:
     ldr r1, =SCRATCH
     ldr r3, =swi_HuffUnCompReadNormal_nv
     bl  bs_call_arm
+    .rept BOOT_ANCHOR_PHASE
+    nop
+    .endr
     ldr r0, =SCRATCH
     ldr r1, =BS_BUF2
     ldr r3, =swi_LZ77UnCompWrite8bit_nv
