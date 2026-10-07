@@ -145,59 +145,68 @@ swi_Diff8bitUnfilterWrite8bit:
 @
 @ The pads cost the same in every memory region. size 0 takes a lighter branch path, even
 @ sizes add a per pair loop pad, and an odd tail byte adds its own pad.
-    .set D8W16_FIX,  9
-    .set D8W16_S0,   14
-    .set D8W16_LOOP, 21
+    .set D8W16_FIX,   1
+    .set D8W16_ENTRY, 5
+    .set D8W16_S0,    3
+    .set D8W16_LOOP,  21
     @ Timing note: part of the per pair pad sits before the strh, delaying each store without
     @ changing the per pair total.
-    .set D8W16_PRE,  16
-    .set D8W16_TAIL, 15
-    .set D8W16_SKIP, 19
+    .set D8W16_PRE,   16
+    .set D8W16_ODD,   3
+    .set D8W16_TAIL,  7
+    .set D8W16_SKIP,  14
 swi_Diff8bitUnfilterWrite16bit:
+    stmfd sp!, {r4-r7, lr}
     ldmia r0!, {r2}
     lsr   r2, r2, #8
     @ Dual source region guard (src+4 and src+4+size) via the shared macro. r12 = source end temp
     @ (lr is the live return). D8W16_FIX accounts for the guard's two extra cycles.
     decomp_guard_arm r0, .d8w16_skip, r2, r12
 .d8w16_afterguard:
+    mov       r3, #0x170 @ SWI-dispatch residue
     mov       r12, #0
     guard_pad D8W16_FIX
-    cmp       r2, #0
-    bne       .d8w16_loop
-    guard_pad D8W16_S0
-    b         .d8w16_done
+    cmp       r2, #2
+    blt       .d8w16_short
+    guard_pad D8W16_ENTRY
 .d8w16_loop:
-    cmp  r2, #2
-    blt  .d8w16_tail
     ldrb r11, [r0], #1
     add  r12, r12, r11
-    and  r3, r12, #0xff
+    and  r4, r12, #0xff
     ldrb r11, [r0], #1
     add  r12, r12, r11
-    orr  r3, r3, r12, lsl #8
+    orr  r4, r4, r12, lsl #8
     .rept D8W16_PRE
     nop
     .endr
-    strh r3, [r1], #2
-    .rept (D8W16_LOOP - D8W16_PRE)
+    strh r4, [r1], #2
+    .rept (D8W16_LOOP - D8W16_PRE + 1)
     nop
     .endr
-    sub r2, r2, #2
-    b   .d8w16_loop
-.d8w16_tail:
-    cmp       r2, #0
-    beq       .d8w16_done
+    sub     r2, r2, #2
+    cmp     r2, #1
+    bhi     .d8w16_loop
+    ldmfdcc sp!, {r4-r7} @ even size: return here
+    ldmfdcc sp!, {lr}
+    bxcc    lr
+.d8w16_odd:
+    guard_pad D8W16_ODD
     ldrb      r11, [r0], #1
     add       r12, r12, r11
     guard_pad D8W16_TAIL
 .d8w16_done:
-    mov r3, #0x170 @ SWI-dispatch residue
-    bx  lr
+    ldmfd sp!, {r4-r7}
+    ldmfd sp!, {lr}
+    bx    lr
+.d8w16_short:
+    cmp       r2, #0
+    bne       .d8w16_odd
+    guard_pad D8W16_S0
+    b         .d8w16_done
 .d8w16_skip:
     guard_pad D8W16_SKIP
-    guard_pad 13 @ skip path cycle pad +13 -> 123, matches the retail BIOS
     mov       r3, #0x170
-    bx        lr
+    b         .d8w16_done
 
 @ Diff16bitUnfilter (SWI 0x18): 16-bit diffs, halfword writes.
 @   out[i] = (out[i-1] + diff_hw[i]) & 0xffff,  prev = 0
@@ -220,6 +229,7 @@ swi_Diff8bitUnfilterWrite16bit:
     .set D16_LOOP,  3
     .set D16_SKIP,  24
 swi_Diff16bitUnfilter:
+    stmfd sp!, {r4, r5}
     ldmia r0!, {r2}
     mov   r3, #0xb00 @ 0xba4 residue (skip + nhw<=1 paths leave it in r3)
     orr   r3, r3, #0xa4
@@ -231,7 +241,7 @@ swi_Diff16bitUnfilter:
 .d16_afterguard:
     add  r2, r2, #1
     movs r2, r2, lsr #1 @ r2 = nhw = (size+1)>>1. Z set iff size == 0
-    .rept D16_BASE
+    .rept (D16_BASE - 3)
     nop
     .endr
     beq .d16_done
@@ -255,15 +265,17 @@ swi_Diff16bitUnfilter:
     subs r2, r2, #1
     bne  .d16_loop
 .d16_done:
-    .rept D16_DONE
-    nop
-    .endr
-    bx lr
+    guard_pad (D16_DONE - 6)
+    ldmfd     sp!, {r4}
+    ldmfd     sp!, {r5}
+    bx        lr
 .d16_done_nhw1:                    @ nhw==1 exit: D16_DONE-2 balances the +2 first-store delay
-    .rept (D16_DONE - 2)
-    nop
-    .endr
-    bx lr
+    guard_pad (D16_DONE - 2 - 6)
+    ldmfd     sp!, {r4}
+    ldmfd     sp!, {r5}
+    bx        lr
 .d16_skip:
-    guard_pad D16_SKIP
+    guard_pad (D16_SKIP - 9)
+    ldmfd     sp!, {r4}
+    ldmfd     sp!, {r5}
     bx        lr

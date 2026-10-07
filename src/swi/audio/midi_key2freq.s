@@ -2,7 +2,7 @@
 @ MidiKey2Freq (SWI 0x1f): convert a MIDI key plus fine adjustment to a SoundChannel frequency.
 @
 @ Entry:  r0 = WaveData*, r1 = MIDI key, r2 = fine adjust (256ths of a semitone)
-@ Return: r0 = frequency; r4-r7 saved/restored, r1/r3 handler scratch.
+@ Return: r0 = frequency; r4-r8 saved/restored, r1/r3 handler scratch.
 @
 @ Keys above 178 clamp to (key = 178, fine = 255). The equal tempered ratio table
 @ is mk_freqtable[n] = round(2^(n/12) * 2^30) for n = 0..12.
@@ -18,13 +18,13 @@
 .set MK_IN_PAD,    8
 .set MK_NF_PAD,    5
 .set MK_WIDE_PAD,  0
-.set MK_TAIL_PAD,  27
+.set MK_TAIL_PAD,  23
 .set MK_LEFT_PAD,  4
 .set MK_CLAMP_PAD, 4
 .align 2
 .arm
 swi_MidiKey2Freq:
-    stmdb sp!, {r4, r5, r6, r7}
+    stmdb sp!, {r4, r5, r6, r7, r8}
     ldr   r3, [r0, #4]
     cmp   r1, #178
     movhi r1, #178
@@ -69,6 +69,7 @@ swi_MidiKey2Freq:
     nop
     .endr
     ldmia sp!, {r4, r5, r6, r7}
+    ldmia sp!, {r8}
     bx    lr
 .mk_nofine:
     mov       r1, r0

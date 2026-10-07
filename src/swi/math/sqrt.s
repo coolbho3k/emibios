@@ -18,24 +18,22 @@
 @ .sqrt_zpad.
 .arm
 swi_Sqrt:
-    cmp r0, #0
-    beq .sqrt_zero
-    mov r2, r0
-    mov r1, #0
-    mov r12, r2
-    cmp r12, #1
-    bls .sqrt_seed
+    stmfd sp!, {lr}
+    cmp   r0, #1
+    bcc   .sqrt_zero
+    mov   r2, r0
+    mov   r1, #0
+    movs  r12, r0, lsr #1
+    mov   r0, #1
+    beq   .sqrt_seed
 .sqrt_h:
-    mov r12, r12, lsr #2
-    add r1, r1, #1
-    cmp r12, #1
-    bhi .sqrt_h
+    movs r12, r12, lsr #2
+    add  r1, r1, #1
+    mov  r0, r0, lsl #1
+    bne  .sqrt_h
 .sqrt_seed:
-    mov r0, #1
-    mov r0, r0, lsl r1
-    mov r12, r2, lsr r1
-    cmp r12, r0
-    bhi .sqrt_bumped
+    cmp r0, r2, lsr r1
+    bcc .sqrt_bumped
 .sqrt_loop:
     cmp r0, r2, lsr #1
     bhi .sqrt_q01
@@ -65,7 +63,7 @@ swi_Sqrt:
     cmp   r1, r0
     movlt r0, r1
     blt   .sqrt_loop
-    bx    lr
+    ldmfd sp!, {pc}
 .sqrt_dslow:
     b .sqrt_dloop @ +5 cyc: taken bhs + this branch (div.s clones the loop instead)
 .sqrt_q01:
@@ -78,7 +76,7 @@ swi_Sqrt:
     cmp   r1, r0
     movlt r0, r1
     blt   .sqrt_q01cont
-    bx    lr
+    ldmfd sp!, {pc}
 .sqrt_q01cont:
     nop
     b .sqrt_loop
@@ -90,10 +88,10 @@ swi_Sqrt:
     mov r0, #0
     mov r1, #0
     mov r3, #1
-    mov r12, #10
+    mov r12, #9
 .sqrt_zpad:
-    subs r12, r12, #1
-    bne  .sqrt_zpad
-    mov  r12, r12
-    mov  r12, r12
-    bx   lr
+    subs  r12, r12, #1
+    bne   .sqrt_zpad
+    mov   r12, r12
+    mov   r12, r12
+    ldmfd sp!, {pc}
