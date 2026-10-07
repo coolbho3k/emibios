@@ -16,9 +16,10 @@ swi_SoftReset:
     ldrb r2, [r0, #-6]
     @ The flag selects the entrypoint by whole-byte != 0, not by bit0.
     @ 0x02 and 0x80 both return to RAM, only 0x00 returns to ROM.
-    cmp   r2, #0
-    moveq lr, #ROM_ENTRYPOINT
-    movne lr, #RAM_ENTRYPOINT
+    cmp       r2, #0
+    moveq     lr, #ROM_ENTRYPOINT
+    movne     lr, #RAM_ENTRYPOINT
+    guard_pad 13
 reset_modes:
     msr cpsr_cf, #MODE_SVC
     ldr sp, =SVC_STACK

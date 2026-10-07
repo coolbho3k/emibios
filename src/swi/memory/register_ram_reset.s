@@ -27,7 +27,7 @@
 .equ TR_OTHER_MID_N, 0
 .equ TR_OTHER_L,     1
 .equ TR_OTHER_N,     3
-.equ TR_SND_L,       14
+.equ TR_SND_L,       13
 .equ TR_SND_N,       2
 .equ TR_SIO_L,       5
 .equ TR_SIO_N,       2
@@ -140,6 +140,8 @@ swi_RegisterRamReset:
     movs r3, #0x70
     strh r3, [r1, #0x10] @ SOUND3CNT_L = 0x70
     strh r2, [r1, #0x24] @ SOUNDCNT_X sound enable back off
+    str  r2, [r1, #0x40] @ FIFO_A/B = 0
+    str  r2, [r1, #0x44]
     TPAD TR_SND_L, TR_SND_N
 .t_no_snd:
     @ ---- SIO (bit 5) ----
