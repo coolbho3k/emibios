@@ -32,13 +32,14 @@
 .arm
     .set HUFF_LOAD8, 8
     .set HUFF_LOAD4, 5
-    .set HUFF_DONE,  10
-    .set HUFF_DONE8, 13
-    .set HUFF_DONE4, 13
+    .set HUFF_DONE,  8
+    .set HUFF_DONE8, 12
+    .set HUFF_DONE4, 12
 @ No-guard entry for a BIOS resident blob (source below 0x4000, which the guard rejects).
 @ Sets up the decoder and enters the shared body. No fixed cycle target. r0 = src, r1 = dst. ARM.
 swi_HuffUnCompReadNormal_nv:
     push {r4-r11, lr}
+    sub  sp, sp, #8
     mov  r9, #0
     ldrb r4, [r0]
     and  r4, r4, #0xf
@@ -52,6 +53,7 @@ swi_HuffUnCompReadNormal_nv:
     b    .huff_afterguard
 swi_HuffUnCompReadNormal:
     push {r4-r11, lr}
+    sub  sp, sp, #8 @ 11 word frame, IRQ handlers nest below it
     @ Read the size and tree-size byte before the source guard. Rejected sources skip decoder setup.
     ldr  r10, [r0]
     movs r2, r10, lsr #8
@@ -67,7 +69,6 @@ swi_HuffUnCompReadNormal:
     ldrb r4, [r0, #-4]
     mov  r12, r7
     and  r4, r4, #0xf
-    nop @ prologue timing pad
     rsb  r11, r4, #12
     mov  r6, r6, lsl r9
     nop
@@ -166,6 +167,7 @@ swi_HuffUnCompReadNormal:
 .huff_last8:
     str       r3, [r1], #4
     guard_pad HUFF_DONE8
+    add       sp, sp, #8
     pop       {r4-r11, lr}
     bx        lr
 
@@ -248,14 +250,16 @@ swi_HuffUnCompReadNormal:
 .huff_last4:
     str       r3, [r1], #4
     guard_pad HUFF_DONE4
+    add       sp, sp, #8
     pop       {r4-r11, lr}
     bx        lr
 .huff_badsrc:                    @ source in BIOS/low region: return, dst untouched.
-    guard_pad 5 @ skip path cycle pad -> 121, matches the retail BIOS
+    guard_pad 3 @ skip path cycle pad -> 121, matches the retail BIOS
     @ leave r0 = original src, not src+4 (the guard runs after the
     @ tree size read `ldrb r10,[r0,#4]!` advanced r0). r1/r2/r3 pass
     @ through unchanged.
     sub r0, r0, #4
+    add sp, sp, #8
     pop {r4-r11, lr}
     bx  lr
 .huff_done0:                     @ size 0: end state r0 = src, r3 = header
@@ -263,5 +267,6 @@ swi_HuffUnCompReadNormal:
     ldr r3, [r0]
 .huff_done:
     guard_pad HUFF_DONE
+    add       sp, sp, #8
     pop       {r4-r11, lr}
     bx        lr
