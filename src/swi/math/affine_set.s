@@ -25,30 +25,28 @@
 @ saved/restored, r2/r11/r12 dispatcher-restored.
 swi_ObjAffineSet:
     stmfd sp!, {r4-r7}
-    cmp   r2, #0
-    beq   .obj_count0
-    adr   r11, sine_lut @ keep unconditional
-    nop
-    nop
 .obj_loop:
+    subs r2, r2, #1
+    blt  .obj_done
     @ Bus note: field read order is theta, then sx, sy.
     ldrb  r12, [r0, #5]
+    adr   r11, sine_lut
     add   r6, r11, r12, lsl #1
     add   r12, r12, #64
-    ldrsh r7, [r6]
-    ldrsh r4, [r0]
-    ldrsh r5, [r0, #2]
     and   r12, r12, #0xff
+    nop
+    ldrsh r7, [r6]
     add   r6, r11, r12, lsl #1
     ldrsh r6, [r6]
-    mov   r11, #0       @ zero for Pb's negate below
+    ldrsh r4, [r0]
+    ldrsh r5, [r0, #2]
     mul   r12, r6, r4
     mov   r12, r12, asr #14
     strh  r12, [r1], r3
     mul   r12, r7, r4
-    sub   r12, r11, r12, asr #14
+    mov   r12, r12, asr #14
+    rsb   r12, r12, #0
     strh  r12, [r1], r3
-    nop
     mul   r12, r7, r5
     mov   r12, r12, asr #14
     strh  r12, [r1], r3
@@ -56,12 +54,8 @@ swi_ObjAffineSet:
     mov   r12, r12, asr #14
     strh  r12, [r1], r3
     add   r0, r0, #8
-    adr   r11, sine_lut @ keep unconditional
-    nop
-    subs  r2, r2, #1
-    bne   .obj_loop
-    nop
-.obj_count0:
+    b     .obj_loop
+.obj_done:
     ldmfd sp!, {r4-r7}
     bx    lr
 
