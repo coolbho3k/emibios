@@ -47,8 +47,8 @@
 .thumb
 swi_Diff8bitUnfilterWrite8bit:
     push            {r4, lr}
-    guard_pad_thumb D8_HDR
     ldmia           r0!, {r2}
+    guard_pad_thumb D8_HDR
     movs            r3, #0
     lsrs            r2, r2, #8
     @ Source-region check via the shared shift macro: (src+4 & 0x0e000000)==0 -> skip. Single check,
@@ -72,22 +72,22 @@ swi_Diff8bitUnfilterWrite8bit:
     nop
     .endr
     strb r3, [r1]
-    adds r1, #1
     subs r2, #1
     .rept D8_FIRSTGAP
     nop
     .endr
 .d8w8_loop:
-    ldrb r4, [r0]
-    adds r0, #1
-    adds r3, r3, r4
+    adds r1, #1
     .rept D8_PAD
     nop
     .endr
+    ldrb r4, [r0]
+    adds r0, #1
+    adds r3, r3, r4
     strb r3, [r1]
-    adds r1, #1
     subs r2, #1
     bne  .d8w8_loop
+    adds r1, #1
     .rept D8_TEXIT
     nop
     .endr
