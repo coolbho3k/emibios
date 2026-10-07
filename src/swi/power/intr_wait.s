@@ -42,26 +42,30 @@ swi_IntrWait:
     strh r2, [r12, #-8]
 .intr_wait_halt:
     nop @ Timing note: 1 cyc acceptance slot between IME = 1 and the halt
+.intr_wait_halt_store:
     strb r3, [r12, #(REG_HALTCNT - MMIO_BASE)]
     @ Timing note: post wake window. The taken branch holds the halt on a prefetch refill, not
     @ an ALU op. Do not replace with nop padding.
     b .intr_wait_check
 .intr_wait_check:
+    nop @ Timing note: 1 cycle after waking, before IME = 0
     strb   r3, [r12, #(REG_IME - MMIO_BASE)]
     ldrh   r2, [r12, #-8]
     ands   r0, r1, r2
     bicne  r2, r2, r0
     strhne r2, [r12, #-8]
     strb   r4, [r12, #(REG_IME - MMIO_BASE)]
-    beq    .intr_wait_halt
+    beq    .intr_wait_rehalt
     @ Timing note: pad the matched exit to the fixed return cost. The Timer prescaler phase
     @ sampled at return must stay stable.
     nop
     nop
     nop
-    nop
     ldmfd sp!, {r4, lr}
     bx    lr
+.intr_wait_rehalt:
+    @ Timing note: halt again on a second taken branch.
+    b .intr_wait_halt_store
 
 @ r0 = 0 first check: return immediately if a waited flag is already set. Same body as the wait
 @ loop, but the matched exit is lighter because this path never paid the post wake branch.
@@ -72,7 +76,7 @@ swi_IntrWait:
     bicne  r2, r2, r0
     strhne r2, [r12, #-8]
     strb   r4, [r12, #(REG_IME - MMIO_BASE)]
-    beq    .intr_wait_halt
+    beq    .intr_wait_rehalt
     nop
     nop
     nop
