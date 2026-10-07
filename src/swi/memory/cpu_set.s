@@ -161,58 +161,25 @@ swi_CpuSet:
 @ skip, the 3rd word of the last block after a copy (the fill value after a fill), the caller's r3
 @ untouched on count 0. r4-r11 preserved, r2/r12 dispatcher-restored.
 @
-@ IRQ-visible: an IRQ can land during the count extraction. The BIOS IRQ stub banks only
-@ r0-r3/r12/lr, so a handler that spills the interrupted r4-r11 sees the live r10 = r2<<11 (the
-@ count before the final shift), r11 = 0x1f, and r12 = 0x20. Push first so the count completes a
-@ couple of cycles before that window, then set those registers to read correctly at it. The
-@ source region guard is deferred past the push, since the copy/fill it gates runs well after the
-@ window. The pushed {r4-r11} frame must hold 0x170 in the r11 slot: some callers under-read that
-@ slot after a CpuFastSet. r10 is restored to the caller's value by the ldmfd.
+@ The pushed lr slot holds 0x170, which some callers read after a CpuFastSet. Exits pop it into
+@ r11 and return through lr, since RegisterRamReset's IWRAM fill overwrites the frame.
 swi_CpuFastSet:
-    mov   r11, #0x170
-    stmfd sp!, {r4 - r11}
+    stmfd sp!, {r4 - r10, lr}
     mov   r10, r2, lsl #11
-    mov   r12, #0x20
-    mov   r11, #0x1f
+    mov   r12, r10, lsr #11
+    b     .+4
+    cmp   r12, #0
+    beq   .cfs_count0
+    nop
+    nop
     tst   r0, #SRC_REGION_MASK
     beq   .cfs_badsrc_framed
-    .set CFS_PUBPAD, 1
-    .rept CFS_PUBPAD
+    b     .+4
     nop
-    .endr
-    lsrs r10, r10, #11
-    beq  .cpufastset_end0
-    b    .cfs_body
-swi_CpuFastSet_nv:
-    @ No-guard entry for RegisterRamReset's boot-phase fills. Still interruptible, so it keeps the
-    @ same live r10/r11 window and the same instruction order (count after the no-ops).
-    mov   r11, #0x170
-    stmfd sp!, {r4 - r11}
-    mov   r10, #0x4000
-    mov   r11, #0x1f
-    nop
-    nop
-    nop
-    mov   r10, r2, lsl #11
-    lsrs  r10, r10, #11
-    beq   .cpufastset_end0
+    add   r10, r1, r12, lsl #2
 .cfs_body:
-    tst r2, #(1 << 24)
-    bne .cpufastset_fill
-    .set LEFC, 7
-    .rept LEFC
-    nop
-    .endr
-.cpufastset_copy:
-    ldmia r0!, {r2, r3, r4, r5, r6, r7, r8, r9}
-    stmia r1!, {r2, r3, r4, r5, r6, r7, r8, r9}
-    subs  r10, r10, #8
-    bgt   .cpufastset_copy
-    .rept (8 - LEFC)
-    nop
-    .endr
-    b .cpufastset_restore
-.cpufastset_fill:
+    tst r2, r2, lsr #25 @ C = fill bit
+    bcc .cpufastset_copy
     ldr r2, [r0]
     mov r3, r2
     mov r4, r2
@@ -221,21 +188,35 @@ swi_CpuFastSet_nv:
     mov r7, r2
     mov r8, r2
     mov r9, r2
-    .set LEFF, 3
-    .rept LEFF
-    nop
-    .endr
 .cpufastset_fill_loop:
-    stmia r1!, {r2, r3, r4, r5, r6, r7, r8, r9}
-    subs  r10, r10, #8
-    bgt   .cpufastset_fill_loop
-    .rept (9 - LEFF)
-    nop
-    .endr
+    cmp   r1, r10
+    stmcc r1!, {r2, r3, r4, r5, r6, r7, r8, r9}
+    bcc   .cpufastset_fill_loop
+    b     .cpufastset_restore
+.cpufastset_copy:
+    cmp   r1, r10
+    ldmcc r0!, {r2, r3, r4, r5, r6, r7, r8, r9}
+    stmcc r1!, {r2, r3, r4, r5, r6, r7, r8, r9}
+    bcc   .cpufastset_copy
 .cpufastset_restore:
-    nop
     ldmfd sp!, {r4 - r11}
     bx    lr
+swi_CpuFastSet_nv:
+    @ No-guard entry for RegisterRamReset's boot-phase fills. r12 holds the caller's return address.
+    mov   r11, #0x170
+    stmfd sp!, {r4 - r11}
+    mov   r10, #0x4000
+    mov   r11, #0x1f
+    nop
+    nop
+    nop
+    mov   r10, r2, lsl #11
+    movs  r10, r10, lsr #11
+    beq   .cpufastset_end0
+    add   r10, r1, r10, lsl #2
+    b     .cfs_body
+.cfs_count0:
+    mov r12, r12, lsl r12
 .cpufastset_end0:
     @ count 0: pad to a fixed cost. The register-specified shift is two cycles, result discarded.
     mov   r12, r12, lsl r12
@@ -244,7 +225,7 @@ swi_CpuFastSet_nv:
     ldmfd sp!, {r4 - r11}
     bx    lr
 .cfs_badsrc_framed:
-    guard_pad 8 @ skip path cycle pad -> 118, matches the retail BIOS
+    guard_pad 3 @ skip path cycle pad -> 118, matches the retail BIOS
     ldmfd     sp!, {r4 - r11}
     mov       r3, #0x170
     bx        lr
