@@ -28,7 +28,13 @@ swi_CpuSet:
     lsls            r3, r3, #21
     tst             r0, r3
     bne             .cs_valid
-    guard_pad_thumb 28 @ skip path cycle pad -> 116, matches the retail BIOS
+    ldr             r3, [sp] @ skip path cycle pad -> 116, matches the retail BIOS
+    ldr             r3, [sp]
+    ldr             r3, [sp]
+    guard_pad_thumb 10
+    ldr             r3, [sp]
+    ldr             r3, [sp]
+    ldr             r3, [sp]
     movs            r3, #0x17
     lsls            r3, r3, #4
     bx              lr

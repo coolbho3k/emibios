@@ -32,7 +32,7 @@
 .arm
     .set HUFF_LOAD8, 8
     .set HUFF_LOAD4, 5
-    .set HUFF_DONE,  8
+    .set HUFF_DONE,  5
     .set HUFF_DONE8, 12
     .set HUFF_DONE4, 12
 @ No-guard entry for a BIOS resident blob (source below 0x4000, which the guard rejects).
@@ -72,11 +72,9 @@ swi_HuffUnCompReadNormal:
     rsb  r11, r4, #12
     mov  r6, r6, lsl r9
     nop
-    b    .hp1
-.hp1:
+    ldr  lr, [sp]
     nop
-    b .hp2
-.hp2:
+    ldr  lr, [sp]
     nop
     nop
 .huff_afterguard:
@@ -129,7 +127,7 @@ swi_HuffUnCompReadNormal:
     mov r12, r7
     mov r3, r3, lsr #8
     nop
-    b   .h8_walk
+    ldr lr, [sp] @ one stack access per symbol
 .h8_walk:
     subs r8, r8, #1
     bmi  .h8_reload
@@ -212,7 +210,7 @@ swi_HuffUnCompReadNormal:
     mov r12, r7
     mov r3, r3, lsr #4
     nop
-    b   .h4_walk
+    ldr lr, [sp] @ one stack access per symbol
 .h4_walk:
     subs r8, r8, #1
     bmi  .h4_reload
@@ -266,6 +264,7 @@ swi_HuffUnCompReadNormal:
     sub r0, r0, #4
     ldr r3, [r0]
 .huff_done:
+    ldr       lr, [sp]
     guard_pad HUFF_DONE
     add       sp, sp, #8
     pop       {r4-r11, lr}
