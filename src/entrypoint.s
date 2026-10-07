@@ -32,9 +32,14 @@ b exception_unused
 #include "swi/dispatcher.s"
 @ Keep the table directly after the dispatcher.
 #include "swi/swi_table.s"
+exception_undefined:
+    mov sp, #9
+.und_burn:
+    subs sp, sp, #1
+    bne  .und_burn
+    subs pc, lr, #4
 
 @ Trivial vector targets.
-exception_undefined:
 exception_unused:
     b .
 
