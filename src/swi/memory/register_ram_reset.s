@@ -154,8 +154,8 @@ swi_RegisterRamReset:
     movs r2, #0x80
     lsls r2, r2, #8
     strh r2, [r1, #0x24] @ RCNT = 0x8000 (general-purpose mode)
-    movs r2, #7
-    strh r2, [r1, #0x30] @ JOYCNT: ack the three write-1-to-clear flags
+    movs r2, #0
+    strh r2, [r1, #0x30] @ JOYCNT = 0
     TPAD TR_SIO_L, TR_SIO_N
 .t_no_sio:
     @ ---- EWRAM (bit 0) ----
