@@ -49,7 +49,7 @@ swi_LZ77UnCompWrite8bit:
     push             {r4-r6, lr}
     ldr              r5, [r0], #4
     movs             r2, r5, lsr #8
-    beq              .lz8_done
+    beq              .lz8_size0
     mov              r12, #0
     decomp_guard_arm r0, .lz8_badsrc, r2 @ dual source region guard (src and src+size, src end temp in lr)
 .lz8_afterguard:
@@ -145,6 +145,8 @@ swi_LZ77UnCompWrite8bit:
     guard_pad LZ_DONE
     pop       {r4-r6, lr}
     bx        lr
+.lz8_size0:
+    nop
 .lz8_badsrc:
     guard_pad LZ_BAD
     pop       {r4-r6, lr}
@@ -185,15 +187,12 @@ swi_LZ77UnCompWrite16bit:
     ldr              r12, [r0], #4
     movs             r10, r12, lsr #8
     mov              r8, #0
-    beq              .lzh_done_pad0
+    beq              .lzh_size0
     mov              r3, #8
     decomp_guard_arm r0, .lzh_badsrc, r10 @ dual source region guard (5 cyc), cost and phase
                                   @ neutral. r7=7 is set by .lzh_reload0. src end temp lives in
                                   @ lr (IRQ-invisible).
     b .lzh_reload0
-.lzh_done_pad0:
-    nop
-    b .lzh_done
 .lzh_block:
     subs r7, r7, #1
     bmi  .lzh_reload0i
@@ -217,9 +216,10 @@ swi_LZ77UnCompWrite16bit:
     subs   r10, r10, #1
     bgt    .lzh_block
     nop
+.lzh_size0:
     nop
     nop
-    b      .lzh_done
+    b .lzh_done
 .lzh_reload0i:
     nop
 .lzh_reload0:

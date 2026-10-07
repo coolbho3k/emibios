@@ -38,12 +38,12 @@
 @ Blocks always run in full: an exact stream writes `size` bytes. A final block
 @ more than the remainder overshoots past `size` (same as Write16bit below).
 swi_RLUnCompReadNormalWrite8bit:
-    push  {lr}
-    push  {r4, r5, r6, r7}
+    push  {r4, r5, r6, r7, lr}
     ldmia r0!, {r2}
     lsrs  r2, r2, #8
-    beq   .rl8_done
     adds  r7, r2, #0
+    nop
+    beq   .rl8_size0
     @ Dual source region guard (src+4 and src+4+size). r0 = src+4, r2 = size.
     @ r3 = mask scratch (clobbered to 0x170 anyway), r6 = src end temp (pushed but otherwise unused).
     decomp_guard_thumb r0, r3, .rl8_badsrc, r2, r6
@@ -99,8 +99,12 @@ swi_RLUnCompReadNormalWrite8bit:
     subs r3, #1
     bne  .rl8_lit
     b    .rl8_block
+.rl8_size0:
+    nop
 .rl8_badsrc:                @ guard only: source in BIOS region. Pad then fall into the shared return.
-    guard_pad_thumb 14 @ skip path cycle pad -> 123, matches the retail BIOS
+    nop
+    guard_pad_thumb 4
+    guard_pad_thumb 9 @ skip path cycle pad 1+4+9 -> 123
 .rl8_done:
     .rept RL8_EXIT
     nop
@@ -131,13 +135,13 @@ swi_RLUnCompReadNormalWrite8bit:
 @ entry re-enters at the high half via the header dispatch).
 swi_RLUnCompReadNormalWrite16bit:
     push  {r4, r5, r6, r7, lr}
-    sub   sp, #4 @ the run-byte stash slot (below the caller SP: undefined scratch)
+    sub   sp, #12 @ the run-byte stash slot (below the caller SP: undefined scratch)
+    movs  r4, #0
     ldmia r0!, {r2}
     lsrs  r2, r2, #8
-    beq   .rl16_done0s
-    adds  r5, r2, #0
-    movs  r4, #0
     movs  r7, #0
+    adds  r5, r2, #0
+    beq   .rl16_done0s
     @ Dual source region guard (src+4 and src+4+size). r0 = src+4, r2 = size (pre pool reload).
     @ r3/r6 are scratch until decoder setup. The prologue timing budget includes the 7-cycle guard.
     decomp_guard_thumb r0, r3, .rl16_badsrc, r2, r6
@@ -148,7 +152,6 @@ swi_RLUnCompReadNormalWrite16bit:
     ldr  r2, .rl16_pool0
     movs r4, #0
     cmp  r5, #0
-    nop
     ldrh r2, [r0]
     mov  r12, r2
     nop
@@ -173,10 +176,15 @@ swi_RLUnCompReadNormalWrite16bit:
     adds r0, #2
     b    .rl16_runpE_have
 .rl16_done0s:
-    b .rl16_done0
+    nop
 .rl16_badsrc:
-    guard_pad_thumb 11         @ skip path cycle pad -> 126, matches the retail BIOS
-    b               .rl16_done @ source-in-BIOS trampoline (near: in the prologue guard's beq range)
+    nop
+    guard_pad_thumb 4
+    guard_pad_thumb 9 @ skip path cycle pad -> 126, matches the retail BIOS
+    add             sp, #12
+    pop             {r4, r5, r6, r7}
+    pop             {r3}
+    bx              r3
 .align 2
 .rl16_pool0: .word 0xc0dec0de
 
@@ -319,12 +327,11 @@ swi_RLUnCompReadNormalWrite16bit:
     cmp r5, #0
     ble .rl16_done
     b   .rl16_blockO
-.rl16_done0:
-    guard_pad_thumb 13
 .rl16_done_pad2:
     nop
     nop
 .rl16_done:
+    add sp, #8
     pop {r2, r4, r5, r6, r7}
     pop {r3} @ r3 = saved lr = the 0x170 dispatcher return, left as the
     bx  r3   @ documented residue
