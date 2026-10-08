@@ -878,7 +878,9 @@ bs_cleanup:
     str  r2, [r1, #0]
     str  r2, [r1, #4]
     str  r2, [r1, #8]
-    str  r2, [r1, #(REG_TM0CNT_L - DMA0SAD)]
+    subs r1, #(DMA0SAD - REG_SOUNDCNT_X)
+    strh r2, [r1]
+    str  r2, [r1, #(REG_TM0CNT_L - REG_SOUNDCNT_X)]
     ldr  r1, =MMIO
     movs r2, #0x80
     strh r2, [r1, #0]
