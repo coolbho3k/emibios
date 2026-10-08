@@ -873,7 +873,7 @@ bs_cleanup:
     str  r2, [r1, #8]
     subs r1, #(DMA3SAD - DMA0SAD)
     @ Leave Timer0 stopped at 0xff8a. Some games seed an RNG from it.
-    ldr  r0, =((0x83 << 16) | 0xff8a)
+    ldr  r0, =((0x81 << 16) | 0xff89)
     str  r0, [r1, #(REG_TM0CNT_L - DMA0SAD)]
     str  r2, [r1, #0]
     str  r2, [r1, #4]
@@ -881,6 +881,13 @@ bs_cleanup:
     subs r1, #(DMA0SAD - REG_SOUNDCNT_X)
     strh r2, [r1]
     str  r2, [r1, #(REG_TM0CNT_L - REG_SOUNDCNT_X)]
+    movs r0, #13
+.bs_tm0_hold:
+    subs r0, r0, #1
+    bne  .bs_tm0_hold
+    nop
+    nop
+    nop
     ldr  r1, =MMIO
     movs r2, #0x80
     strh r2, [r1, #0]
