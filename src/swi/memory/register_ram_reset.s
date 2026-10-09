@@ -21,16 +21,16 @@
 @ freezes its counter at the disable write near the end of that region.
 @
 @ TPAD loop,nops expands to `movs r3,#loop` then `bl t_pad4` (~4 cyc/iter) plus `nops` filler movs.
-.equ TR_ALWAYS_L,    15
-.equ TR_ALWAYS_N,    0
-.equ TR_OTHER_MID_L, 40
-.equ TR_OTHER_MID_N, 0
-.equ TR_OTHER_L,     1
-.equ TR_OTHER_N,     3
+.equ TR_ALWAYS_L,    12
+.equ TR_ALWAYS_N,    3
+.equ TR_OTHER_MID_L, 37
+.equ TR_OTHER_MID_N, 3
+.equ TR_OTHER_L,     3
+.equ TR_OTHER_N,     4
 .equ TR_SND_L,       13
 .equ TR_SND_N,       2
 .equ TR_SIO_L,       5
-.equ TR_SIO_N,       2
+.equ TR_SIO_N,       0
 .equ TR_EWRAM_L,     0
 .equ TR_EWRAM_N,     1
 .equ TR_PAL_L,       0
@@ -68,6 +68,11 @@ swi_RegisterRamReset:
     lsls r1, r1, #24
     movs r2, #0x80
     strh r2, [r1, #0]           @ DISPCNT = 0x80: forced blank for the whole SWI
+    ldr  r1, =0x04000110
+    lsls r3, r2, #8
+    strh r3, [r1, #4]           @ 0x04000114 = 0x8000 and SIODATA = 7, for every flag set
+    movs r3, #7
+    strb r3, [r1, #0x10]
     @ ---- other IO (bit 7, tested via N) ----
     lsls r3, r4, #24
     bpl  .t_no_other
@@ -156,6 +161,7 @@ swi_RegisterRamReset:
     strh r2, [r1, #0x24] @ RCNT = 0x8000 (general-purpose mode)
     movs r2, #0
     strh r2, [r1, #0x30] @ JOYCNT = 0
+    strh r2, [r1, #4]    @ 0x04000114 = 0
     TPAD TR_SIO_L, TR_SIO_N
 .t_no_sio:
     @ ---- EWRAM (bit 0) ----
