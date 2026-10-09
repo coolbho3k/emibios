@@ -49,6 +49,8 @@ reset_modes:
 @ Start+Select at boot. The multiboot path runs with IRQs live but never calls reset_modes, so set
 @ the IRQ mode stack here.
 hard_reset_multiboot:
+    mov  r1, #1
+    strb r1, [r0, #(REG_POSTFLG - REG_KEYINPUT)] @ r0 = REG_KEYINPUT from HardReset
     mov r0, #MODE_IRQ
     msr cpsr_c, r0
     ldr sp, =IRQ_STACK
