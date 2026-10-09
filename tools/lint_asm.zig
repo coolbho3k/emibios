@@ -653,6 +653,7 @@ fn discover(gpa: std.mem.Allocator, io: Io, files: *std.ArrayList([]const u8)) !
         if (std.mem.indexOf(u8, entry.path, ".git/") != null) continue;
         if (std.mem.indexOf(u8, entry.path, "zig-out/") != null) continue;
         if (std.mem.indexOf(u8, entry.path, ".zig-cache/") != null) continue;
+        if (std.mem.indexOf(u8, entry.path, "zig-pkg/") != null) continue;
         try files.append(gpa, try gpa.dupe(u8, entry.path));
     }
     std.mem.sort([]const u8, files.items, {}, lessStr);

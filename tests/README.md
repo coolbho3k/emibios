@@ -11,6 +11,6 @@ zig build test                                 # run every test
 zig build test --test-timeout 240s             # may be required on slower computers
 zig build test -Dtest-filter=Sqrt              # run only tests whose name contains "Sqrt"
 zig build test -Dbios=/path/to/gba_bios.bin    # run the suite against any arbitrary BIOS
-zig build test -Demu=mesence                   # select the emulator backend (default: gbahawk)
+zig build test -Demu=mesence                   # select the emulator backend (default: gbahawk, also mgba)
 zig build rom                                  # build the test ROM (zig-out/bin/test_rom.gba)
 ```

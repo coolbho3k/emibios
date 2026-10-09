@@ -108,8 +108,8 @@ pub fn build(b: *std.Build) void {
     report.dependOn(&r.step);
 
     // Selectable emulator backend for recal and the SWI tests.
-    const EmuKind = enum { gbahawk, mesence };
-    const emu_kind = b.option(EmuKind, "emu", "emulator backend for recal/test: gbahawk (default) | mesence") orelse .gbahawk;
+    const EmuKind = enum { gbahawk, mesence, mgba };
+    const emu_kind = b.option(EmuKind, "emu", "emulator backend for recal/test: gbahawk (default) | mesence | mgba") orelse .gbahawk;
     // Calibrated BIOS to cart handoff cycle
     const handoff_target: u64 = 76001675;
     const iface_mod = b.createModule(.{ .root_source_file = b.path("tools/emu/iface.zig") });
@@ -179,24 +179,18 @@ pub fn build(b: *std.Build) void {
     //   1. Add a tools/emu/<core>.zig backend
     //   2. Write a build<Core>() function
     //   3. Add to this switch case
+    const mgba = buildMgba(b, iface_mod);
     const backend: ?Backend = switch (emu_kind) {
         .gbahawk => buildGbahawk(b, iface_mod, emu_core),
         .mesence => buildMesence(b, iface_mod, emu_core),
+        .mgba => if (mgba) |mg| bindLib(emu_core, mg) else null,
     };
     if (backend) |bk| {
         const emu_lib = bk.lib;
         const emu_mod = bk.mod;
 
         // The probe reports the handoff cycle for one ROM.
-        const probe = b.addExecutable(.{ .name = "probe", .root_module = b.createModule(.{
-            .root_source_file = b.path("tools/recal/probe.zig"),
-            .target = b.graph.host,
-            .optimize = .ReleaseSafe,
-            .link_libcpp = true,
-        }) });
-        probe.root_module.linkLibrary(emu_lib);
-        probe.root_module.addImport("iface", iface_mod);
-        probe.root_module.addImport("emu", emu_mod);
+        const probe = addProbe(b, "probe", bk, iface_mod);
 
         const hs_root = b.createModule(.{ .root_source_file = b.path("rom/handoff_stub.zig"), .target = arm, .optimize = .ReleaseSmall });
         const rom_gba = buildGbaRom(b, zig, "handoff_stub", hs_root, null);
@@ -287,6 +281,7 @@ pub fn build(b: *std.Build) void {
             if (bios_opt == null) run.step.dependOn(b.getInstallStep());
             test_step.dependOn(&run.step);
         }
+
     }
 
     const lint = b.step("lint", "Lint the assembly source. -Dfix rewrites fixable issues. Warnings fail unless -Dstrict=false)");
@@ -308,7 +303,7 @@ pub fn build(b: *std.Build) void {
     fmt.dependOn(&b.addFmt(.{ .paths = &.{ "build.zig", "tools" } }).step);
 }
 
-// We must support multiple emulator backends so we can cross check for accuracy. Today, that is GBAHawk and MesenCE.
+// We must support multiple emulator backends so we can cross check for accuracy. Today, that is GBAHawk, MesenCE and mGBA.
 // Tests should pass on all cycle-accurate emulators we add (or there is a bug with the emulator or our BIOS).
 // Emulator sources are fetched and built with Zig itself targeting the host, so you don't need any other dependencies.
 
@@ -322,6 +317,12 @@ fn emuLib(b: *std.Build, name: []const u8) *std.Build.Step.Compile {
         .linkage = .static,
         .root_module = b.createModule(.{ .target = b.graph.host, .optimize = .ReleaseFast, .link_libcpp = true }),
     });
+}
+
+// Register an mGBA backend built by buildMgba.
+fn bindLib(lib_step: *std.Build.Step, bk: Backend) Backend {
+    lib_step.dependOn(&bk.lib.step);
+    return bk;
 }
 
 // Register a built core lib.
@@ -352,6 +353,49 @@ fn buildGbahawk(b: *std.Build, iface_mod: *std.Build.Module, lib_step: *std.Buil
     lib.root_module.addCSourceFile(.{ .file = b.path("tools/emu/gbahawk_export.cpp"), .flags = &.{ "-std=c++17", "-w" } });
     lib.root_module.addIncludePath(dep.path("libHawk/GBAHawk"));
     return bindBackend(b, iface_mod, lib_step, lib, "tools/emu/gbahawk.zig");
+}
+
+// mGBA emulator test backend. Builds the GBA core plus the util code, blip_buf and inih it needs.
+fn buildMgba(b: *std.Build, iface_mod: *std.Build.Module) ?Backend {
+    const dep = b.lazyDependency("mgba", .{}) orelse return null;
+    const lib = b.addLibrary(.{
+        .name = "mgba",
+        .linkage = .static,
+        .root_module = b.createModule(.{ .target = b.graph.host, .optimize = .ReleaseFast, .link_libc = true }),
+    });
+    const m = lib.root_module;
+    m.addIncludePath(dep.path("include"));
+    m.addIncludePath(dep.path("src"));
+    // The defines mGBA's CMake would detect on Linux and macOS.
+    const base = [_][]const u8{
+        "-std=gnu11",          "-w",            "-DM_CORE_GBA",   "-DMINIMAL_CORE=2",
+        "-DDISABLE_THREADING", "-DHAVE_STRDUP", "-DHAVE_STRNDUP", "-DHAVE_LOCALTIME_R",
+        "-DHAVE_LOCALE",
+    };
+    const flags: []const []const u8 = if (b.graph.host.result.os.tag.isDarwin()) &(base ++ [_][]const u8{ "-DHAVE_XLOCALE", "-DHAVE_STRLCPY" }) else &base;
+    m.addCSourceFiles(.{
+        .root = dep.path("src"),
+        .files = &.{
+            "arm/arm.c",               "arm/decoder-arm.c",               "arm/decoder-thumb.c",    "arm/decoder.c",
+            "arm/isa-arm.c",           "arm/isa-thumb.c",                 "gba/audio.c",            "gba/bios.c",
+            "gba/cart/ereader.c",      "gba/cart/gpio.c",                 "gba/cart/matrix.c",      "gba/cart/vfame.c",
+            "gba/dma.c",               "gba/gba.c",                       "gba/hle-bios.c",         "gba/input.c",
+            "gba/io.c",                "gba/memory.c",                    "gba/overrides.c",        "gba/renderers/cache-set.c",
+            "gba/savedata.c",          "gba/serialize.c",                 "gba/sio.c",              "gba/sio/gbp.c",
+            "gba/sio/joybus.c",        "gba/timer.c",                     "gba/video.c",            "gb/audio.c",
+            "core/bitmap-cache.c",     "core/cache-set.c",                "core/cheats.c",          "core/interface.c",
+            "core/log.c",              "core/map-cache.c",                "core/sync.c",            "core/tile-cache.c",
+            "core/timing.c",           "util/configuration.c",            "util/crc32.c",           "util/formatting.c",
+            "util/gbk-table.c",        "util/hash.c",                     "util/string.c",          "util/table.c",
+            "util/vfs.c",              "util/vfs/vfs-dirent.c",           "util/vfs/vfs-fd.c",      "util/vfs/vfs-mem.c",
+            "platform/posix/memory.c", "third-party/blip_buf/blip_buf.c", "third-party/inih/ini.c",
+        },
+        .flags = flags,
+    });
+    m.addCSourceFile(.{ .file = b.path("tools/emu/mgba_export.c"), .flags = flags });
+    const mod = b.createModule(.{ .root_source_file = b.path("tools/emu/mgba.zig") });
+    mod.addImport("iface", iface_mod);
+    return .{ .lib = lib, .mod = mod };
 }
 
 // MesenCE emulator test backend
@@ -389,6 +433,20 @@ fn buildMesence(b: *std.Build, iface_mod: *std.Build.Module, lib_step: *std.Buil
     m.addCSourceFile(.{ .file = b.path("tools/emu/mesence_export.cpp"), .flags = cxx }); // our headless shim
 
     return bindBackend(b, iface_mod, lib_step, lib, "tools/emu/mesence.zig");
+}
+
+// Handoff cycle probe on one backend.
+fn addProbe(b: *std.Build, name: []const u8, bk: Backend, iface_mod: *std.Build.Module) *std.Build.Step.Compile {
+    const probe = b.addExecutable(.{ .name = name, .root_module = b.createModule(.{
+        .root_source_file = b.path("tools/recal/probe.zig"),
+        .target = b.graph.host,
+        .optimize = .ReleaseSafe,
+        .link_libcpp = true,
+    }) });
+    probe.root_module.linkLibrary(bk.lib);
+    probe.root_module.addImport("iface", iface_mod);
+    probe.root_module.addImport("emu", bk.mod);
+    return probe;
 }
 
 const RomBin = struct { elf: std.Build.LazyPath, bin: std.Build.LazyPath };

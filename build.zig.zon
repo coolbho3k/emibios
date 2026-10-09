@@ -18,6 +18,11 @@
             .hash = "N-V-__8AABA76gBy4A90MZCxYYL_PkFh9hxMyXpoK7y2QRWP",
             .lazy = true,
         },
+        .mgba = .{
+            .url = "https://github.com/mgba-emu/mgba/archive/26b7884bc25a5933960f3cdcd98bac1ae14d42e2.tar.gz",
+            .hash = "N-V-__8AACmEDQQciaEE67TuG9g5Hc4VScGIl-bAruD0PXh5",
+            .lazy = true,
+        },
     },
     .paths = .{
         "build.zig",
