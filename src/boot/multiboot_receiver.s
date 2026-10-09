@@ -191,6 +191,11 @@ multiboot_receiver_listen:
 multiboot_receiver_joybus:
     ldr  r0, =SYS_STACK
     mov  sp, r0            @ private stack
+    movs r0, #0            @ a JoyBus reset can arrive mid animation: stop the wobble DMA
+    ldr  r1, =REG_DMA0CNT_H
+    strh r0, [r1]
+    ldr  r1, =REG_BG0HOFS
+    strh r0, [r1]
     ldr  r6, =REG_KEYINPUT @ base for all JOY register accesses
     ldr  r0, =RCNT_JOYBUS
     strh r0, [r6, #JB_RCNT]
