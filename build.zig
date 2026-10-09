@@ -181,7 +181,7 @@ pub fn build(b: *std.Build) void {
     //   1. Add a tools/emu/<core>.zig backend
     //   2. Write a build<Core>() function
     //   3. Add to this switch case
-    // mGBA also has its own handoff test.
+    // mGBA also sets BOOT_ANCHOR_PHASE in recal and has its own handoff test.
     const mgba = buildMgba(b, iface_mod);
     const backend: ?Backend = switch (emu_kind) {
         .gbahawk => buildGbahawk(b, iface_mod, emu_core),
@@ -215,6 +215,8 @@ pub fn build(b: *std.Build) void {
         rc.addArtifactArg(probe);
         rc.addFileArg(rom_gba);
         rc.addArg(b.fmt("{d}", .{handoff_target}));
+        rc.addArtifactArg(addProbe(b, "probe_mgba", mg, iface_mod));
+        rc.addArg(b.fmt("{d}", .{mgba_handoff_target}));
         if (no_header_check) rc.addArg("-Dno-header-check=true");
         recal.dependOn(&rc.step);
 
