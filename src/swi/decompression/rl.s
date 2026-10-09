@@ -164,6 +164,9 @@ swi_RLUnCompReadNormalWrite16bit:
     bcs  .rl16_runB1
     adds r3, #1
     subs r5, r3
+    nop
+    ldr  r2, [sp]
+    str  r2, [sp]
     b    .rl16_litlE
 .rl16_runB1:
     adds r3, #3
@@ -171,9 +174,11 @@ swi_RLUnCompReadNormalWrite16bit:
     ldr  r2, [sp]
     nop
     nop
+    str  r2, [sp]
+    str  r2, [sp]
     ldrb r6, [r0, #1]
     str  r6, [sp]
-    adds r0, #2
+    adds r0, #1
     b    .rl16_runpE_have
 .rl16_done0s:
     nop
@@ -195,11 +200,14 @@ swi_RLUnCompReadNormalWrite16bit:
     nop
     adds r3, #1
     ldr  r2, [sp]
-    ldrb r6, [r0]
+    ldrb r6, [r0, #1]
     lsrs r2, r6, #7
     bne  .rl16_runE
     adds r3, r6, #1
     subs r5, r3
+    adds r0, #1
+    ldr  r2, [sp]
+    str  r2, [sp]
 .rl16_litlE:
     ldrb r6, [r0, #1]
     lsls r6, r4
@@ -210,8 +218,11 @@ swi_RLUnCompReadNormalWrite16bit:
     ldr  r2, .rl16_pool
     subs r3, #1
     bne  .rl16_litlE_hi
-    adds r0, #1
-    b    .rl16_checkO
+    cmp  r5, #0
+    ble  .rl16_exit
+    nop
+    nop
+    b    .rl16_blockO
 .rl16_litlE_hi:
     ldrb r6, [r0, #1]
     lsls r6, r4
@@ -226,18 +237,17 @@ swi_RLUnCompReadNormalWrite16bit:
     subs r3, #1
     bne  .rl16_litlE
 @ literal-block end, even parity (fall through only)
-    adds r0, #1
-    ldr  r2, [sp]
-    str  r2, [sp]
-    cmp  r5, #0
-    ble  .rl16_done_pad2
-    b    .rl16_blockE
+    cmp r5, #0
+    ble .rl16_exit
+    b   .rl16_blockE
 .rl16_runE:
     lsls r3, r6, #25
     lsrs r3, r3, #25
     adds r3, #3
     subs r5, r3
-    ldrb r6, [r0, #1]
+    str  r2, [sp]
+    str  r2, [sp]
+    ldrb r6, [r0, #2]
     str  r6, [sp]
     adds r0, #2
 .rl16_runpE:
@@ -250,11 +260,10 @@ swi_RLUnCompReadNormalWrite16bit:
     ldr  r2, .rl16_pool
     subs r3, #1
     bne  .rl16_runpE_hi
-    ldr  r2, [sp]
-    str  r2, [sp]
-    nop
     cmp  r5, #0
-    ble  .rl16_done
+    ble  .rl16_exit
+    nop
+    nop
     b    .rl16_blockO
 .rl16_runpE_hi:
     ldr  r6, [sp]
@@ -269,10 +278,8 @@ swi_RLUnCompReadNormalWrite16bit:
     subs r3, #1
     bne  .rl16_runpE
 .rl16_runendE:
-    str r2, [sp]
-    str r2, [sp]
     cmp r5, #0
-    ble .rl16_done_pad2
+    ble .rl16_exit
     b   .rl16_blockE
 .align 2
 .rl16_pool: .word 0xc0dec0de      @ pc-rel scratch target, same cost in every region
@@ -280,11 +287,14 @@ swi_RLUnCompReadNormalWrite16bit:
     nop
     adds r3, #1
     ldr  r2, [sp]
-    ldrb r6, [r0]
+    ldrb r6, [r0, #1]
     lsrs r2, r6, #7
     bne  .rl16_runO
     adds r3, r6, #1
     subs r5, r3
+    adds r0, #1
+    ldr  r2, [sp]
+    str  r2, [sp]
 .rl16_litlO:
     ldrb r6, [r0, #1]
     lsls r6, r4
@@ -296,18 +306,17 @@ swi_RLUnCompReadNormalWrite16bit:
     movs r7, #0
     subs r3, #1
     bne  .rl16_litlE
-    adds r0, #1
-    ldr  r2, [sp]
-    str  r2, [sp]
     cmp  r5, #0
-    ble  .rl16_done_pad2
+    ble  .rl16_exit
     b    .rl16_blockE
 .rl16_runO:
     lsls r3, r6, #25
     lsrs r3, r3, #25
     adds r3, #3
     subs r5, r3
-    ldrb r6, [r0, #1]
+    str  r2, [sp]
+    str  r2, [sp]
+    ldrb r6, [r0, #2]
     str  r6, [sp]
     adds r0, #2
 .rl16_runpO:
@@ -321,14 +330,8 @@ swi_RLUnCompReadNormalWrite16bit:
     subs r3, #1
     bne  .rl16_runpE
     b    .rl16_runendE
-.rl16_checkO:
-    str r2, [sp]
-    str r2, [sp]
-    cmp r5, #0
-    ble .rl16_done
-    b   .rl16_blockO
-.rl16_done_pad2:
-    nop
+.rl16_exit:
+    adds r0, #1
     nop
 .rl16_done:
     add sp, #8
