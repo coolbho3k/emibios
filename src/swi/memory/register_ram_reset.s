@@ -30,7 +30,7 @@
 .equ TR_SND_L,       13
 .equ TR_SND_N,       2
 .equ TR_SIO_L,       5
-.equ TR_SIO_N,       0
+.equ TR_SIO_N,       3
 .equ TR_EWRAM_L,     0
 .equ TR_EWRAM_N,     1
 .equ TR_PAL_L,       0
@@ -150,19 +150,23 @@ swi_RegisterRamReset:
     TPAD TR_SND_L, TR_SND_N
 .t_no_snd:
     @ ---- SIO (bit 5) ----
-    lsls r3, r4, #26
-    bpl  .t_no_sio
-    ldr  r1, =REG_SIO_BASE
-    ldr  r2, =0x01000020
-    bl   t_cfs
-    ldr  r1, =0x04000110
-    movs r2, #0x80
-    lsls r2, r2, #8
-    strh r2, [r1, #0x24] @ RCNT = 0x8000 (general-purpose mode)
-    movs r2, #0
-    strh r2, [r1, #0x30] @ JOYCNT = 0
-    strh r2, [r1, #4]    @ 0x04000114 = 0
-    TPAD TR_SIO_L, TR_SIO_N
+    lsls  r3, r4, #26
+    bpl   .t_no_sio
+    ldr   r1, =REG_SIO_BASE
+    movs  r2, #0
+    movs  r3, #0
+    movs  r6, #0
+    movs  r7, #0
+    stmia r1!, {r2, r3, r6, r7} @ SIOCNT = 0 in the caller's mode
+    movs  r3, #0x80
+    lsls  r3, r3, #8
+    stmia r1!, {r2, r3, r6, r7} @ RCNT = 0x8000 (general-purpose mode)
+    ldr   r2, =0x01000018
+    bl    t_cfs                 @ JOYCNT = 0
+    ldr   r1, =0x04000110
+    movs  r2, #0
+    strh  r2, [r1, #4]          @ 0x04000114 = 0
+    TPAD  TR_SIO_L, TR_SIO_N
 .t_no_sio:
     @ ---- EWRAM (bit 0) ----
     lsls r3, r4, #31
