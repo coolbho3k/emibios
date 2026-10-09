@@ -112,6 +112,8 @@ pub fn build(b: *std.Build) void {
     const emu_kind = b.option(EmuKind, "emu", "emulator backend for recal/test: gbahawk (default) | mesence | mgba") orelse .gbahawk;
     // Calibrated BIOS to cart handoff cycle
     const handoff_target: u64 = 76001675;
+    // The same handoff measured on mGBA
+    const mgba_handoff_target: u64 = 75997995;
     const iface_mod = b.createModule(.{ .root_source_file = b.path("tools/emu/iface.zig") });
     const emu_core = b.step("emu-core", "Build the selected emulator core library (recal/test dependency)");
     const recal = b.step("recal", "Re-pin the boot handoff to the committed phase");
@@ -179,13 +181,14 @@ pub fn build(b: *std.Build) void {
     //   1. Add a tools/emu/<core>.zig backend
     //   2. Write a build<Core>() function
     //   3. Add to this switch case
+    // mGBA also has its own handoff test.
     const mgba = buildMgba(b, iface_mod);
     const backend: ?Backend = switch (emu_kind) {
         .gbahawk => buildGbahawk(b, iface_mod, emu_core),
         .mesence => buildMesence(b, iface_mod, emu_core),
         .mgba => if (mgba) |mg| bindLib(emu_core, mg) else null,
     };
-    if (backend) |bk| {
+    if (backend) |bk| if (mgba) |mg| {
         const emu_lib = bk.lib;
         const emu_mod = bk.mod;
 
@@ -232,6 +235,7 @@ pub fn build(b: *std.Build) void {
         test_opts.addOption([]const u8, "bios_path", bios_opt orelse "zig-out/bin/gba_bios.bin");
         test_opts.addOption([]const u8, "emu", @tagName(emu_kind));
         test_opts.addOption(u64, "handoff_cycle", handoff_target);
+        test_opts.addOption(u64, "mgba_handoff_cycle", mgba_handoff_target);
         for (manifest.swi_tests) |t| for (t.swis) |s| test_opts.addOptionPath(s.opt, swiTestRom(b, zig, rgba, protocol_arm, arm, s.num));
         test_opts.addOptionPath("handoff_rom", rom_gba);
         test_opts.addOptionPath("sound_mode_rom", sound_mode_gba);
@@ -282,7 +286,21 @@ pub fn build(b: *std.Build) void {
             test_step.dependOn(&run.step);
         }
 
-    }
+        // mGBA handoff, whichever backend runs the rest
+        const mt = b.addTest(.{ .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/system/mgba_handoff_test.zig"),
+            .target = b.graph.host,
+            .optimize = .Debug,
+        }), .filters = test_filters });
+        mt.root_module.linkLibrary(mg.lib);
+        mt.root_module.addImport("iface", iface_mod);
+        mt.root_module.addImport("emu", mg.mod);
+        mt.root_module.addImport("test_options", opts_mod);
+        const mrun = b.addRunArtifact(mt);
+        mrun.setCwd(b.path("."));
+        if (bios_opt == null) mrun.step.dependOn(b.getInstallStep());
+        test_step.dependOn(&mrun.step);
+    };
 
     const lint = b.step("lint", "Lint the assembly source. -Dfix rewrites fixable issues. Warnings fail unless -Dstrict=false)");
     const lint_fix = b.option(bool, "fix", "lint: rewrite fixable issues in-place") orelse false;
