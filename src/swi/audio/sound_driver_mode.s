@@ -18,7 +18,7 @@
 .set MODE_PAD_PRE,  2
 .set MODE_PAD_A,    31
 .set MODE_PAD_RAMP, 4546
-.set MODE_WORK_PAD, 139
+.set MODE_PAD_CLR,  163
 swi_SoundDriverMode:
     push {r4, r5}
     adds r4, r0, #0
@@ -106,18 +106,37 @@ swi_SoundDriverMode:
     lsls r3, r3, #16
     orrs r1, r3
     ldr  r2, =REG_TM0CNT_L
-    str  r1, [r2]
-    ldr  r2, =REG_VCOUNT
-    @ Target is VCount==159, the last visible scanline just before VBlank at 160.
-.mode_vwait:
-    ldrb r3, [r2]
-    cmp  r3, #159
-    @ level poll: proceed the moment VCount==159
-    bne  .mode_vwait
-    movs r3, #MODE_WORK_PAD @ Timing note: post poll settle
-.mode_workpad:
+    movs r3, #0
+    strh r3, [r2, #2]
+    movs r5, #0xd4
+    lsls r5, r5, #2
+    adds r5, r0 @ r5 = PCM buffers, SI + 0x350 up to SI + 0xfb0
+    movs r4, #0xc6
+    lsls r4, r4, #2
+.mode_clear:
+    str  r3, [r5]
+    adds r5, r5, #4
+    subs r4, r4, #1
+    bgt  .mode_clear
+    movs r3, #MODE_PAD_CLR
+.mode_clrpad:
     subs r3, r3, #1
-    bgt  .mode_workpad
+    bgt  .mode_clrpad
+    ldr  r5, =REG_VCOUNT
+    @ Wait for the start of VCount 159. Called during line 159, this waits a full frame.
+.mode_vbusy:
+    ldrb r3, [r5]
+    cmp  r3, #159
+    beq  .mode_vbusy
+.mode_vwait:
+    ldrb r3, [r5]
+    cmp  r3, #159
+    bne  .mode_vwait
+    str  r1, [r2]
+    ldr  r1, =SOUND_IDENT
+    str  r1, [r0]
+    pop  {r4, r5}
+    bx   lr
 .mode_unlock:
     ldr r0, =SOUND_INFO_PTR
     ldr r0, [r0]
