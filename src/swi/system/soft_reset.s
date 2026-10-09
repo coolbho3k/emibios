@@ -19,17 +19,20 @@ swi_SoftReset:
     cmp       r2, #0
     moveq     lr, #ROM_ENTRYPOINT
     movne     lr, #RAM_ENTRYPOINT
-    guard_pad 13
+    guard_pad 10
 reset_modes:
-    msr cpsr_cf, #MODE_SVC
+    mov r0, #MODE_SVC
+    msr cpsr_cf, r0
     ldr sp, =SVC_STACK
     mov lr, #0
     msr spsr_cf, lr
-    msr cpsr_c, #MODE_IRQ
+    mov r0, #MODE_IRQ
+    msr cpsr_c, r0
     ldr sp, =IRQ_STACK
     mov lr, #0
     msr spsr_cf, lr
-    msr cpsr_cf, #MODE_SYS
+    mov r0, #MODE_SYS
+    msr cpsr_cf, r0
     ldr sp, =SYS_STACK
     @ Clear the 0x200 byte protected region at 0x03007e00..0x03008000 and zero r0-r12 from it.
     mov r0, #IWRAM_START
@@ -43,4 +46,14 @@ reset_modes:
     sub      r0, r0, #0x200
     ldmia    r0, { r0-r12 }
     bx       lr
+@ Start+Select at boot. The multiboot path runs with IRQs live but never calls reset_modes, so set
+@ the IRQ mode stack here.
+hard_reset_multiboot:
+    mov r0, #MODE_IRQ
+    msr cpsr_c, r0
+    ldr sp, =IRQ_STACK
+    mov r0, #MODE_SYS
+    msr cpsr_c, r0
+    ldr r0, =multiboot_receiver_detect + 1
+    bx  r0 @ Thumb transport detector
 .ltorg

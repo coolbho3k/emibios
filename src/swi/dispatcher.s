@@ -46,8 +46,8 @@ exception_swi:
     mov   lr, pc
     bx    r12
     ldmfd sp!, {r2, lr}
-    nop
-    msr   cpsr_fc, #(MODE_SVC | IRQ_DISABLE | FIQ_DISABLE)
+    mov   r12, #(MODE_SVC | IRQ_DISABLE | FIQ_DISABLE)
+    msr   cpsr_fc, r12
     ldmfd sp!, {r11}
     msr   spsr_fc, r11
     ldmfd sp!, {r11, r12, lr}
