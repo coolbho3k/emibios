@@ -890,14 +890,12 @@ bs_cleanup:
     str  r2, [r1, #8]
     subs r1, #(DMA0SAD - REG_SOUNDCNT_X)
     strh r2, [r1]
-    str  r2, [r1, #(REG_TM0CNT_L - REG_SOUNDCNT_X)]
-    movs r0, #13
+    movs r0, #11
 .bs_tm0_hold:
     subs r0, r0, #1
     bne  .bs_tm0_hold
-    nop
-    nop
-    nop
+    str  r2, [r1, #(REG_TM0CNT_L - REG_SOUNDCNT_X)]
+    guard_pad_thumb 11
     ldr  r1, =MMIO
     movs r2, #0x80
     strh r2, [r1, #0]
