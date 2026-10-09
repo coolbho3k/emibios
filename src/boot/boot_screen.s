@@ -206,6 +206,16 @@ boot_screen_show:
     mov  sp, r2
     push {r1, r4-r7, lr}
     adds r7, r0, #0
+    @ Set JOYCNT bit 6 and SIOCNT in Normal mode, then clear JOYCNT in GPIO mode.
+    ldr  r0, =REG_SIO_BASE
+    movs r1, #0
+    strh r1, [r0, #(REG_RCNT - REG_SIO_BASE)]
+    movs r2, #0x40
+    strh r2, [r0, #(REG_JOYCNT - REG_SIO_BASE)]
+    strh r1, [r0, #(REG_SIOCNT - REG_SIO_BASE)]
+    lsls r2, r2, #9
+    strh r2, [r0, #(REG_RCNT - REG_SIO_BASE)]
+    strh r1, [r0, #(REG_JOYCNT - REG_SIO_BASE)]
     ldr  r0, =MB_MODE_FLAG
     movs r1, #0
     strb r1, [r0]

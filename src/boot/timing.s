@@ -20,7 +20,7 @@
 .equ HANDOFF_SCANLINE, 99
 
 @ Sets the handoff cycle on mGBA only. Retune when boot SWI costs change.
-.equ BOOT_ANCHOR_PHASE, 6
+.equ BOOT_ANCHOR_PHASE, 4
 
 @ Recal writes FINAL_BURN_PAD/FINAL_FINE here.
 #include "calibration.s"
