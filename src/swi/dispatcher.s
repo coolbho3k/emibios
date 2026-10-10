@@ -16,9 +16,8 @@
 @   * r2, r4-r11, r12, r13, r14 are preserved across the SWI: the dispatcher itself saves/restores
 @     r2, r11, r12, the SPSR and both lr's, so handlers owe only r4-r10 (and sp). r0, r1, r3 carry
 @     results and the documented residues; handler values of r2/r11/r12 are visible only to a mid-SWI IRQ.
-@ swi_table follows this file directly (entrypoint.s include order) so the ldrh reach is fixed
-@ by this file alone: table = exception_swi + 0x54, minus the add's pc+8 leaves 0x44.
-.equ SWI_TBL_OFF, 0x44
+@ swi_table is at exception_swi + 0x78 (entrypoint.s order), 0x68 past pc+8.
+.equ SWI_TBL_OFF, 0x68
 .arm
 .global exception_swi
 exception_swi:

@@ -30,7 +30,10 @@ b exception_unused
 .endif
 
 #include "swi/dispatcher.s"
-@ Keep the table directly after the dispatcher.
+@ An IRQ right after Halt's HALTCNT write pushes lr 0x1b8.
+.space 8
+#include "swi/power/halt.s"
+@ Keep the table directly after Halt.
 #include "swi/swi_table.s"
 exception_undefined:
     mov sp, #9
