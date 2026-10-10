@@ -43,7 +43,7 @@ test "BitUnPack offset-0 timing (both backends)" {
 }
 
 test "RAM permutation matrix matches goldens (shared harness)" {
-    // Both backends check cycles and destination checksums against the regression baselines in ram_perm.zig.
+    // Both backends check cycles and destination checksums against the hardware reference goldens in ram_perm.zig.
     const a = std.testing.allocator;
     var core = try emu.Core.create(a);
     defer core.deinit();
