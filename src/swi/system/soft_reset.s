@@ -51,11 +51,11 @@ reset_modes:
 hard_reset_multiboot:
     mov  r1, #1
     strb r1, [r0, #(REG_POSTFLG - REG_KEYINPUT)] @ r0 = REG_KEYINPUT from HardReset
-    mov r0, #MODE_IRQ
-    msr cpsr_c, r0
-    ldr sp, =IRQ_STACK
-    mov r0, #MODE_SYS
-    msr cpsr_c, r0
-    ldr r0, =multiboot_receiver_detect + 1
-    bx  r0 @ Thumb transport detector
+    mov  r0, #MODE_IRQ
+    msr  cpsr_c, r0
+    ldr  sp, =IRQ_STACK
+    mov  r0, #MODE_SYS
+    msr  cpsr_c, r0
+    ldr  r0, =multiboot_receiver_detect + 1
+    bx   r0                                      @ Thumb transport detector
 .ltorg

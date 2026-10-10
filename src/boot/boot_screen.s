@@ -892,24 +892,24 @@ bs_cleanup:
     strh r2, [r1]
     movs r0, #11
 .bs_tm0_hold:
-    subs r0, r0, #1
-    bne  .bs_tm0_hold
-    str  r2, [r1, #(REG_TM0CNT_L - REG_SOUNDCNT_X)]
+    subs            r0, r0, #1
+    bne             .bs_tm0_hold
+    str             r2, [r1, #(REG_TM0CNT_L - REG_SOUNDCNT_X)]
     guard_pad_thumb 11
-    ldr  r1, =MMIO
-    movs r2, #0x80
-    strh r2, [r1, #0]
-    movs r2, #0
-    strh r2, [r1, #8]
-    ldr  r1, =BGPAL
-    strh r2, [r1, #0]
-    strh r2, [r1, #2]
-    strh r2, [r1, #4]
-    strh r2, [r1, #36]
-    bl   bs_map_clear
-    ldr  r0, =VRAM
-    ldr  r2, =(BS_LAST_T * 32 / 4)
-    movs r1, #0
+    ldr             r1, =MMIO
+    movs            r2, #0x80
+    strh            r2, [r1, #0]
+    movs            r2, #0
+    strh            r2, [r1, #8]
+    ldr             r1, =BGPAL
+    strh            r2, [r1, #0]
+    strh            r2, [r1, #2]
+    strh            r2, [r1, #4]
+    strh            r2, [r1, #36]
+    bl              bs_map_clear
+    ldr             r0, =VRAM
+    ldr             r2, =(BS_LAST_T * 32 / 4)
+    movs            r1, #0
 .bs_ct:
     str  r1, [r0]
     adds r0, r0, #4

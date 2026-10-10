@@ -48,14 +48,14 @@ exception_reset:
     b    .debug_tail
 .hard_reset_keys:
     cmp r1, #0 @ both pressed reads 0
-    beq   hard_reset_multiboot
-    bl    reset_modes
-    mov   r0, #0xff
+    beq hard_reset_multiboot
+    bl  reset_modes
+    mov r0, #0xff
     @ RegisterRamReset(0xff). Forces blank at entry, which changes clear timing.
     swi #0x010000
     mov r0, #0xff
     swi #0x010000                  @ second clear. Boot clears twice.
-    bl    reset_modes
+    bl  reset_modes
     mov r0, #MMIO_BASE
     ldr r1, =.hard_reset_IO_values @ table lives outside the cart handoff prefetch area
     mov r4, #8
