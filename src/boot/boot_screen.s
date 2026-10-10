@@ -86,14 +86,14 @@
 .align 2                               @ 4-byte align: ARM bl target
 @ Keeps the pre-0x128 entrypoint call site at one 4-byte `bl`.
 boot_screen_entry:
-    @ Multiboot with no cart. Valid GamePak starts with an 0xeaxxxxxx ARM branch.
+    @ No cart: multiboot.
     mov r0, #ROM_ENTRYPOINT
     @ Game Bub: read any word from cart other than 0x08000000 first
     ldr   r1, [r0, #4]
     ldr   r0, [r0]
     and   r0, r0, #0xff000000
     cmp   r0, #0xea000000
-    ldrne r0, =multiboot_receiver_detect + 1
+    ldrne r0, =bs_nobranch_check + 1
     bxne  r0
     mov   r0, #0
     ldr   r1, =boot_screen_show + 1
@@ -104,6 +104,21 @@ boot_screen_entry:
 @ ARM call veneer. r3 = ARM target.
 bs_call_arm:
     bx r3
+
+@ No branch at 0: boot if the logo is valid.
+bs_nobranch_check:
+    mov r4, lr @ bl below clobbers lr
+    bl  bs_logo_hash
+    mov lr, r4
+    ldr r1, =LOGO_HASH
+    cmp r0, r1
+    beq .bnc_boot
+    ldr r0, =multiboot_receiver_detect + 1
+    bx  r0
+.bnc_boot:
+    movs r0, #0
+    ldr  r1, =boot_screen_show + 1
+    bx   r1
 
 @ bs_trig_check: sample Start+Select.
 @ ACTION 2 sniffs JoyBus reset. Clobbers r0, r1.
