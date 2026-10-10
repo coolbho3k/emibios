@@ -7,7 +7,7 @@
 @ Validate the ident (SOUND_IDENT). Invalid = no-op. Fields are applied only if
 @ their bits are nonzero. A zero field leaves the prior value.
 @   bits 0-7   reverb        -> SoundInfo+0x05 = r0 & 0x7f   (bit7 = apply, not stored)
-@   bits 8-11  maxChans      -> SoundInfo+0x06
+@   bits 8-11  maxChans      -> SoundInfo+0x06, and every channel status byte cleared
 @   bits 12-15 mainVolume  -> SoundInfo+0x07
 @   bits 20-23 DA resolution -> SOUNDBIAS bits 14-15 = (DA-8)<<14 (bias level kept)
 @   bits 16-19 freq index 1..12 -> SoundInfo+0x08, plus the per-index table values
@@ -15,10 +15,10 @@
 @        and Timer0 (TM0CNT = reload | enable, reload = 0x10000 - round(2^24/pcmFreq)).
 @ SOUNDCNT_L/H/X and the FIFO DMA registers are not touched.
 .thumb
-.set MODE_PAD_PRE,  2
-.set MODE_PAD_A,    31
+.set MODE_PAD_INV,  2
+.set MODE_PAD_TAIL, 3
 .set MODE_PAD_RAMP, 4546
-.set MODE_PAD_CLR,  163
+.set MODE_PAD_CLR,  174
 swi_SoundDriverMode:
     push {r4, r5}
     adds r4, r0, #0
@@ -26,21 +26,20 @@ swi_SoundDriverMode:
     ldr  r0, [r0]
     ldr  r1, =SOUND_IDENT
     ldr  r2, [r0]
-    movs r3, #MODE_PAD_PRE @ Timing note: shared prologue pad
-.mode_pad_pre:
-    subs r3, r3, #1
-    bgt  .mode_pad_pre
     cmp  r2, r1
-    bne  .mode_inv
+    beq  .mode_valid
+    movs r3, #MODE_PAD_INV
+.mode_pad_inv:
+    subs r3, r3, #1
+    bgt  .mode_pad_inv
+    pop  {r4, r5}
+    bx   lr
+.mode_valid:
     @ Re-entrancy lock: bump the ident to valid+1 (0x68736d54) for the duration of Mode.
     @ A VSync or Main IRQ landing mid-Mode then reads the bad ident and skips, so it cannot
     @ process an extra sound tick against half updated fields. r0 = SI here.
     adds r2, r1, #1
     str  r2, [r0]
-    movs r3, #MODE_PAD_A @ Timing note: valid path field pad
-.mode_pad_a:
-    subs r3, r3, #1
-    bgt  .mode_pad_a
     adds r1, r4, #0
     lsls r2, r1, #24
     beq  .mode_maxch
@@ -53,30 +52,39 @@ swi_SoundDriverMode:
     ands r1, r2
     beq  .mode_vol
     strb r1, [r0, #6]
+    @ New channel count: clear all 12 channel status bytes.
+    movs r2, #0
+    adds r3, r0, #0
+    adds r3, #0x50
+    movs r1, #12
+.mode_chclr:
+    strb r2, [r3]
+    adds r3, #0x40
+    subs r1, #1
+    bgt  .mode_chclr
+    nop
 .mode_vol:
     lsrs r1, r4, #12
     movs r2, #0xf
     ands r1, r2
     beq  .mode_da
     strb r1, [r0, #7]
+    nop
 .mode_da:
-    @ Branchless and constant-time.
     lsrs r1, r4, #20
     movs r2, #0xf
     ands r1, r2
-    negs r3, r1
-    asrs r3, r3, #31 @ r3 = P = (DA!=0) ? 0xffffffff : 0   (predicate mask)
+    beq  .mode_freq
     subs r1, #8
-    lsls r1, r1, #14
-    ands r1, r3
-    movs r2, #0x3
-    lsls r2, r2, #14
-    ands r2, r3
+    lsls r1, r1, #30
+    lsrs r1, r1, #16
     ldr  r5, =REG_SOUNDBIAS
     ldrh r3, [r5]
-    bics r3, r2
+    lsls r3, r3, #18
+    lsrs r3, r3, #18
     orrs r3, r1
     strh r3, [r5]
+    nop
 .mode_freq:
     lsrs r1, r4, #16
     movs r2, #0xf
@@ -95,6 +103,13 @@ swi_SoundDriverMode:
     adds r2, r1
     ldrh r1, [r2]
     strb r1, [r0, #0x0b]
+    lsrs r1, r1, #8
+.mode_rate_pad:
+    guard_pad_thumb 9
+    subs            r1, #1
+    bge             .mode_rate_pad
+    guard_pad_thumb 3
+    @ pcmSamplesPerVBlank, pcmFreq, divFreq, then the Timer0 reload.
     ldrh r1, [r2, #2]
     str  r1, [r0, #0x10]
     ldrh r1, [r2, #4]
@@ -132,34 +147,34 @@ swi_SoundDriverMode:
     ldrb r3, [r5]
     cmp  r3, #159
     bne  .mode_vwait
+    nop
     str  r1, [r2]
     ldr  r1, =SOUND_IDENT
     str  r1, [r0]
+    movs r3, #MODE_PAD_TAIL
+.mode_tailpad:
+    subs r3, r3, #1
+    bgt  .mode_tailpad
     pop  {r4, r5}
     bx   lr
 .mode_unlock:
-    ldr r0, =SOUND_INFO_PTR
-    ldr r0, [r0]
     ldr r1, =SOUND_IDENT
     str r1, [r0]
 .mode_ret:
     pop {r4, r5}
     bx  lr
-.mode_inv:                     @ invalid-ident exit: no lock was taken, so leave the ident alone
-    pop {r4, r5}
-    bx  lr
     .ltorg
 .align 1
-mode_freqtable: @ per freq index 1..12: pcmDmaPeriod, psv, pcmFreq, divFreq, reload
-    .hword 16, 0x060, 0x1666, 0x5b7, 0xf492
-    .hword 12, 0x084, 0x1ecc, 0x428, 0xf7b0
-    .hword 9, 0x0b0, 0x2910, 0x31e, 0xf9c4
-    .hword 7, 0x0e0, 0x3443, 0x273, 0xfb1a
-    .hword 6, 0x108, 0x3d98, 0x214, 0xfbd8
-    .hword 5, 0x130, 0x46ed, 0x1ce, 0xfc64
-    .hword 4, 0x160, 0x5220, 0x18f, 0xfce2
-    .hword 3, 0x1c0, 0x6886, 0x139, 0xfd8d
-    .hword 3, 0x210, 0x7b30, 0x10a, 0xfdec
+mode_freqtable: @ per freq index 1..12: pcmDmaPeriod | setup pad steps << 8, psv, pcmFreq, divFreq, reload
+    .hword 16 | 6 << 8, 0x060, 0x1666, 0x5b7, 0xf492
+    .hword 12 | 5 << 8, 0x084, 0x1ecc, 0x428, 0xf7b0
+    .hword 9 | 4 << 8, 0x0b0, 0x2910, 0x31e, 0xf9c4
+    .hword 7 | 3 << 8, 0x0e0, 0x3443, 0x273, 0xfb1a
+    .hword 6 | 3 << 8, 0x108, 0x3d98, 0x214, 0xfbd8
+    .hword 5 | 2 << 8, 0x130, 0x46ed, 0x1ce, 0xfc64
+    .hword 4 | 2 << 8, 0x160, 0x5220, 0x18f, 0xfce2
+    .hword 3 | 1 << 8, 0x1c0, 0x6886, 0x139, 0xfd8d
+    .hword 3 | 1 << 8, 0x210, 0x7b30, 0x10a, 0xfdec
     .hword 2, 0x260, 0x8dda, 0x0e7, 0xfe32
     .hword 2, 0x2a0, 0x9cc9, 0x0d1, 0xfe5e
     .hword 2, 0x2c0, 0xa440, 0x0c8, 0xfe71
