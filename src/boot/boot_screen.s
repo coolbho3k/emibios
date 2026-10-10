@@ -897,8 +897,12 @@ bs_cleanup:
     str  r2, [r1, #4]
     str  r2, [r1, #8]
     subs r1, #(DMA3SAD - DMA0SAD)
-    @ Leave Timer0 stopped at 0xff8a. Some games seed an RNG from it.
+    @ Leave Timer0 stopped at 0xff8a, or 0xff8b if device type bit 7 is set. Some games seed an RNG from it.
     ldr  r0, =((0x81 << 16) | 0xff89)
+    ldr  r3, =(CART + 0xb4)
+    ldrb r3, [r3]
+    lsrs r3, r3, #7
+    adds r0, r0, r3
     str  r0, [r1, #(REG_TM0CNT_L - DMA0SAD)]
     str  r2, [r1, #0]
     str  r2, [r1, #4]
