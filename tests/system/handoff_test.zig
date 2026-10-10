@@ -81,3 +81,51 @@ test "boot-to-cart handoff state matches the blessed snapshot" {
     bad = check("latch", core.getBiosLatch(), gold.latch) or bad; // open-bus latch value
     if (bad) return error.HandoffStateDrift;
 }
+
+// Rewrites word 0 of the handoff ROM from `b target` to `add pc, pc, #imm` with the same target.
+fn nonBranchRom(alloc: std.mem.Allocator, romf: []const u8) ![]u8 {
+    const rom = try alloc.dupe(u8, romf);
+    const w = std.mem.readInt(u32, rom[0..4], .little);
+    if (w >> 24 != 0xea) return error.NotABranch;
+    const off: i32 = @as(i32, @bitCast(w << 8)) >> 8;
+    const imm: u32 = @intCast(off * 4); // add pc, pc, #imm lands at pc + 8 + imm, like the branch
+    if (imm > 0xff) return error.ImmTooWide;
+    std.mem.writeInt(u32, rom[0..4], 0xe28ff000 | imm, .little);
+    return rom;
+}
+
+test "a cart whose first word is not a branch boots when its logo is valid" {
+    if (!std.mem.eql(u8, opts.emu, "gbahawk")) return error.SkipZigTest;
+    const alloc = std.testing.allocator;
+    const bios = try iface.readFile(alloc, opts.bios_path);
+    defer alloc.free(bios);
+    const romf = try iface.readFile(alloc, opts.handoff_rom);
+    defer alloc.free(romf);
+    const rom = try nonBranchRom(alloc, romf);
+    defer alloc.free(rom);
+
+    var core = try emu.Core.create(alloc);
+    defer core.deinit();
+    try core.boot(bios, rom);
+    const h = core.runToHandoff(TIMEOUT_IN_CYCLES);
+    try std.testing.expectEqual(@as(u32, 0x08000000), h.pc);
+    try std.testing.expectEqual(opts.handoff_cycle, h.cycle);
+}
+
+test "a cart whose first word is not a branch and whose logo is bad is treated as no cart" {
+    if (!std.mem.eql(u8, opts.emu, "gbahawk")) return error.SkipZigTest;
+    const alloc = std.testing.allocator;
+    const bios = try iface.readFile(alloc, opts.bios_path);
+    defer alloc.free(bios);
+    const romf = try iface.readFile(alloc, opts.handoff_rom);
+    defer alloc.free(romf);
+    const rom = try nonBranchRom(alloc, romf);
+    defer alloc.free(rom);
+    rom[0x04] ^= 0xff;
+
+    var core = try emu.Core.create(alloc);
+    defer core.deinit();
+    try core.boot(bios, rom);
+    const h = core.runToHandoff(TIMEOUT_IN_CYCLES);
+    try std.testing.expect(h.pc != 0x08000000);
+}
