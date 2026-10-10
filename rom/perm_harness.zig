@@ -13,6 +13,7 @@ export fn romMain() linksection(".text.romstart") callconv(.c) noreturn {
     gba.timerInit();
     perm.runMatrix();
     perm.runDiag();
+    perm.runBup();
     @as(*volatile u32, @ptrFromInt(0x02000000)).* = protocol.DONE_MAGIC;
     while (true) {}
 }

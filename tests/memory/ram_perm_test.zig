@@ -13,6 +13,7 @@ const protocol = @import("protocol");
 const DONE_MAGIC: u32 = protocol.DONE_MAGIC;
 const RESULT_OFF: u32 = layout.perm_result.base - 0x02000000;
 const DIAG_OFF: u32 = layout.perm_diag.base - 0x02000000;
+const BUP_OFF: u32 = layout.perm_bup.base - 0x02000000;
 
 fn bootHarness(a: std.mem.Allocator, core: *emu.Core) !void {
     const bios = try iface.readFile(a, opts.bios_path);
@@ -39,6 +40,22 @@ test "BitUnPack offset-0 timing (both backends)" {
         const cyc = iface.readWord(&core, .wram, DIAG_OFF + @as(u32, @intCast(i)) * 4);
         errdefer std.debug.print("FAIL BitUnPack {d}B fill=0x{X:0>2}: cyc={d} (want {d})\n", .{ dg.bytes, dg.fill, cyc, dg.cyc });
         try std.testing.expectEqual(dg.cyc, cyc);
+    }
+}
+
+test "BitUnPack placement matrix (both backends)" {
+    const a = std.testing.allocator;
+    var core = try emu.Core.create(a);
+    defer core.deinit();
+    try bootHarness(a, &core);
+    for (spec.BUP_PLACES, 0..) |pl, p| {
+        for (0..spec.BUP_K) |k| {
+            const want = spec.BUP_GOLDEN[p][k];
+            const cyc = iface.readWord(&core, .wram, BUP_OFF + @as(u32, @intCast(p * spec.BUP_K + k)) * 4);
+            const w = spec.BUP_WIDTHS[k / spec.BUP_OFFSETS.len];
+            errdefer std.debug.print("FAIL BitUnPack {s} {d}->{d} off=0x{X}: cyc={d} (want {d})\n", .{ pl.name, w.sw, w.dw, spec.BUP_OFFSETS[k % spec.BUP_OFFSETS.len], cyc, want });
+            try std.testing.expectEqual(want, cyc);
+        }
     }
 }
 

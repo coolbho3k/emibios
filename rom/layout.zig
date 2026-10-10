@@ -10,11 +10,12 @@ pub const perm_result: Span = .{ .base = 0x02024000, .len = 0x1000 };
 pub const perm_info: Span = .{ .base = 0x02025000, .len = 0x1000 };
 pub const perm_diag: Span = .{ .base = 0x02026000, .len = 0x800 };
 pub const summary: Span = .{ .base = 0x02026800, .len = 0x100 };
+pub const perm_bup: Span = .{ .base = 0x02026900, .len = 0x700 };
 pub const shim: Span = .{ .base = 0x02027000, .len = 0x1000 };
 pub const bump: Span = .{ .base = 0x02028000, .len = 0x18000 };
 
 comptime {
-    const spans = [_]Span{ state, mem_dest, handoff, perm_src, perm_dst, perm_result, perm_info, perm_diag, summary, shim, bump };
+    const spans = [_]Span{ state, mem_dest, handoff, perm_src, perm_dst, perm_result, perm_info, perm_diag, summary, perm_bup, shim, bump };
     for (spans, 0..) |s, i| {
         if (s.base < 0x02000000 or s.base + s.len > 0x02040000) @compileError("EWRAM span out of range");
         for (spans[i + 1 ..]) |o| {

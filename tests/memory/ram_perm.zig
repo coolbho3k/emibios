@@ -22,7 +22,7 @@ const SWI = struct {
 
 pub const bit_unpack_swi = SWI.bit_unpack;
 
-// BitUnPack EW->EW hardware reference timing fixtures for the data_offset==0 fast path.
+// BitUnPack EW->EW hardware reference timing fixtures with data_offset 0.
 pub const Diag = struct { bytes: u16, fill: u8, cyc: u32 };
 pub const DIAG = [_]Diag{
     .{ .bytes = 4, .fill = 0x00, .cyc = 982 }, // nz=0
@@ -30,6 +30,64 @@ pub const DIAG = [_]Diag{
     .{ .bytes = 16, .fill = 0x00, .cyc = 3442 }, // nz=0
     .{ .bytes = 4, .fill = 0xFF, .cyc = 1046 }, // nz=32
     .{ .bytes = 8, .fill = 0xFF, .cyc = 1930 }, // nz=64
+};
+
+// BitUnPack placement matrix: each width and data_offset case runs with the info block, source and
+// destination placed in ROM, IWRAM or EWRAM (names read info/src>dst). The goldens are hardware-reference
+// measurements.
+pub const Loc = enum { ro, iw, ew };
+pub const BupWidth = struct { sw: u8, dw: u8 };
+pub const BUP_WIDTHS = [_]BupWidth{
+    .{ .sw = 1, .dw = 1 }, .{ .sw = 1, .dw = 2 },  .{ .sw = 1, .dw = 4 },  .{ .sw = 1, .dw = 8 },
+    .{ .sw = 1, .dw = 16 }, .{ .sw = 1, .dw = 32 }, .{ .sw = 2, .dw = 8 }, .{ .sw = 4, .dw = 16 },
+    .{ .sw = 8, .dw = 32 },
+};
+pub const BUP_OFFSETS = [_]u32{ 0, 0x10 };
+pub const BUP_K = BUP_WIDTHS.len * BUP_OFFSETS.len;
+pub const BUP_SRC align(4) = [_]u8{ 0xA5, 0x00, 0x3C, 0xFF };
+pub const BUP_INFO: [BUP_K][2]u32 = blk: {
+    var t: [BUP_K][2]u32 = undefined;
+    for (BUP_WIDTHS, 0..) |w, wi| {
+        for (BUP_OFFSETS, 0..) |off, oi| {
+            t[wi * BUP_OFFSETS.len + oi] = .{ BUP_SRC.len | (@as(u32, w.sw) << 16) | (@as(u32, w.dw) << 24), off };
+        }
+    }
+    break :blk t;
+};
+pub const BupPlace = struct { name: []const u8, info: Loc, src: Loc, dst: Loc };
+pub const BUP_PLACES = blk: {
+    var t: [18]BupPlace = undefined;
+    var n: usize = 0;
+    for ([_]Loc{ .ro, .iw, .ew }) |i| {
+        for ([_]Loc{ .ro, .iw, .ew }) |sr| {
+            for ([_]Loc{ .iw, .ew }) |d| {
+                t[n] = .{ .name = @tagName(i) ++ "/" ++ @tagName(sr) ++ ">" ++ @tagName(d), .info = i, .src = sr, .dst = d };
+                n += 1;
+            }
+        }
+    }
+    break :blk t;
+};
+// [place][width * BUP_OFFSETS.len + offset] TM0 cycles.
+pub const BUP_GOLDEN = [BUP_PLACES.len][BUP_K]u32{
+    .{ 978, 978, 980, 980, 984, 984, 992, 992, 1008, 1008, 1040, 1040, 620, 620, 436, 436, 342, 342 }, // ro/ro>iw
+    .{ 983, 983, 990, 990, 1004, 1004, 1032, 1032, 1088, 1088, 1200, 1200, 640, 640, 456, 456, 362, 362 }, // ro/ro>ew
+    .{ 962, 962, 964, 964, 968, 968, 976, 976, 992, 992, 1024, 1024, 604, 604, 420, 420, 326, 326 }, // ro/iw>iw
+    .{ 967, 967, 974, 974, 988, 988, 1016, 1016, 1072, 1072, 1184, 1184, 624, 624, 440, 440, 346, 346 }, // ro/iw>ew
+    .{ 970, 970, 972, 972, 976, 976, 984, 984, 1000, 1000, 1032, 1032, 612, 612, 428, 428, 334, 334 }, // ro/ew>iw
+    .{ 975, 975, 982, 982, 996, 996, 1024, 1024, 1080, 1080, 1192, 1192, 632, 632, 448, 448, 354, 354 }, // ro/ew>ew
+    .{ 952, 952, 954, 954, 958, 958, 966, 966, 982, 982, 1014, 1014, 594, 594, 410, 410, 316, 316 }, // iw/ro>iw
+    .{ 957, 957, 964, 964, 978, 978, 1006, 1006, 1062, 1062, 1174, 1174, 614, 614, 430, 430, 336, 336 }, // iw/ro>ew
+    .{ 936, 936, 938, 938, 942, 942, 950, 950, 966, 966, 998, 998, 578, 578, 394, 394, 300, 300 }, // iw/iw>iw
+    .{ 941, 941, 948, 948, 962, 962, 990, 990, 1046, 1046, 1158, 1158, 598, 598, 414, 414, 320, 320 }, // iw/iw>ew
+    .{ 944, 944, 946, 946, 950, 950, 958, 958, 974, 974, 1006, 1006, 586, 586, 402, 402, 308, 308 }, // iw/ew>iw
+    .{ 949, 949, 956, 956, 970, 970, 998, 998, 1054, 1054, 1166, 1166, 606, 606, 422, 422, 328, 328 }, // iw/ew>ew
+    .{ 968, 968, 970, 970, 974, 974, 982, 982, 998, 998, 1030, 1030, 610, 610, 426, 426, 332, 332 }, // ew/ro>iw
+    .{ 973, 973, 980, 980, 994, 994, 1022, 1022, 1078, 1078, 1190, 1190, 630, 630, 446, 446, 352, 352 }, // ew/ro>ew
+    .{ 952, 952, 954, 954, 958, 958, 966, 966, 982, 982, 1014, 1014, 594, 594, 410, 410, 316, 316 }, // ew/iw>iw
+    .{ 957, 957, 964, 964, 978, 978, 1006, 1006, 1062, 1062, 1174, 1174, 614, 614, 430, 430, 336, 336 }, // ew/iw>ew
+    .{ 960, 960, 962, 962, 966, 966, 974, 974, 990, 990, 1022, 1022, 602, 602, 418, 418, 324, 324 }, // ew/ew>iw
+    .{ 965, 965, 972, 972, 986, 986, 1014, 1014, 1070, 1070, 1182, 1182, 622, 622, 438, 438, 344, 344 }, // ew/ew>ew
 };
 
 pub const Region = struct { name: []const u8, src: u32, dst: u32 };

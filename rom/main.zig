@@ -697,11 +697,28 @@ fn runDiagSuite() void {
     }
 }
 
+fn runBupSuite() void {
+    const res: [*]volatile u32 = @ptrFromInt(perm.BUP_RESULT);
+    inline for (ram_perm.BUP_PLACES, 0..) |pl, p| {
+        var exp: u32 = 0;
+        var meas: u32 = 0;
+        var ok = true;
+        for (0..ram_perm.BUP_K) |k| {
+            const cyc = res[p * ram_perm.BUP_K + k];
+            exp += ram_perm.BUP_GOLDEN[p][k];
+            meas += cyc;
+            ok = ok and cyc == ram_perm.BUP_GOLDEN[p][k];
+        }
+        addCase(pl.name, exp, meas, ok);
+    }
+}
+
 fn runAll() void {
     var bump = Bump.init(layout.bump.base, layout.bump.len);
     testing.setSink(&recordCase);
     perm.runMatrix();
     perm.runDiag();
+    perm.runBup();
     inline for (SWI_TESTS) |entry| {
         beginTest(entry[0], entry[1]);
         testing.setSuite(entry[0]);
@@ -717,4 +734,6 @@ fn runAll() void {
     }
     beginTest("BitUnPackDiag", Type.regions);
     runDiagSuite();
+    beginTest("BitUnPackPlace", Type.regions);
+    runBupSuite();
 }
