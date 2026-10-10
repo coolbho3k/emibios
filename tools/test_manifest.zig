@@ -32,4 +32,5 @@ pub const platform_specific = [_]struct { path: []const u8, reason: []const u8 }
     .{ .path = "tests/audio/sound_mode_reverb_test.zig", .reason = "stateful: Init then Mode then read SoundInfo" },
     .{ .path = "tests/audio/sound_loop_test.zig", .reason = "stateful: sample looping and PCM output" },
     .{ .path = "tests/audio/sound_reentry_test.zig", .reason = "stateful: nested SWI 0x1C from the sequencer hook" },
+    .{ .path = "tests/audio/sound_vsync_off_test.zig", .reason = "stateful: Init then IRQ sampled VSyncOff" },
 };
