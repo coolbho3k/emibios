@@ -9,11 +9,12 @@
 @ "do nothing" callback/jump pointers at +0x28..+0x3c (+0x24 stays zero), publish the
 @ work pointer at SOUND_INFO_PTR, set SOUNDCNT_H = 0x210e / SOUNDCNT_X = 0x80 /
 @ SOUNDBIAS = 0x4200, program and arm the FIFO DMA (DMA1/DMA2 SAD = mix-buffer
-@ halves at +0x350/+0x980, DAD = FIFO A/B, control 0xb6000000), and start Timer0.
+@ halves at +0x350/+0x980, DAD = FIFO A/B, control 0xb6000000).
 @
-@ The routine then busy waits to a fixed PPU scanline before returning.
+@ Stops Timer0, waits for the start of VCount 159, then restarts it and writes the ident.
 .thumb
-.set INIT_WORK_PAD, 6
+.set INIT_WORK_PAD, 3
+.set INIT_SYNC_PAD, 182
 swi_SoundDriverInit:
     adds r1, r0, #0
     movs r2, #0
@@ -24,8 +25,6 @@ swi_SoundDriverInit:
     adds r1, r1, #4
     subs r3, r3, #4
     bgt  .init_zero
-    ldr  r1, =SOUND_IDENT
-    str  r1, [r0, #0x00]
     movs r1, #8
     strb r1, [r0, #0x06]
     movs r1, #15
@@ -73,24 +72,38 @@ swi_SoundDriverInit:
     lsls r2, r2, #24
     str  r2, [r1, #0x08]
     str  r2, [r1, #0x14]
-    ldr  r1, =0x0080fb1a
-    ldr  r2, =REG_TM0CNT_L
-    str  r1, [r2]
+    mov  r12, r0
+    ldr  r3, =0x0080fb1a
     @ Sound setup VBlank sync
-    ldr r1, =REG_VCOUNT
-    @ Target is VCount==159, the last visible scanline just before VBlank at 160.
+    ldr  r1, =REG_VCOUNT
+    movs r0, #(REG_TM0CNT_L - REG_VCOUNT)
+    movs r2, #0
+    str  r2, [r1, r0]
+    movs r2, #INIT_SYNC_PAD
+.init_sp:
+    subs            r2, r2, #1
+    bgt             .init_sp
+    guard_pad_thumb 3
+    @ Wait for the start of VCount 159, a full frame if already on it.
+.init_vbusy:
+    ldrb r2, [r1]
+    cmp  r2, #159
+    beq  .init_vbusy
 .init_vwait:
     ldrb r2, [r1]
     cmp  r2, #159
-    @ level poll: proceed the moment VCount==159
     bne  .init_vwait
+    nop
+    str  r3, [r1, r0]
+    ldr  r0, =SOUND_IDENT
+    mov  r1, r12
+    str  r0, [r1]
     movs r3, #INIT_WORK_PAD @ Timing note: post poll settle
 .init_wp:
     subs r3, r3, #1
     bgt  .init_wp
-    @ Return residue: callers read these back after the Init wrapper. r0 = ident,
-    @ r1 = 0x9f, r3 = 0x170.
-    ldr  r0, =SOUND_IDENT
+    nop
+    @ Returns r0 = ident, r1 = 0x9f, r3 = 0x170.
     movs r1, #0x9f
     ldr  r3, =0x170
     bx   lr
