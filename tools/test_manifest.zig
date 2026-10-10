@@ -34,4 +34,5 @@ pub const platform_specific = [_]struct { path: []const u8, reason: []const u8 }
     .{ .path = "tests/audio/sound_reentry_test.zig", .reason = "stateful: nested SWI 0x1C from the sequencer hook" },
     .{ .path = "tests/audio/sound_vsync_off_test.zig", .reason = "stateful: Init then IRQ sampled VSyncOff" },
     .{ .path = "tests/audio/sound_timing_test.zig", .reason = "stateful: Init then Mode, timed against PPU edges" },
+    .{ .path = "tests/system/halt_timer_test.zig", .reason = "boot leftover and IRQ timing, patched cart header per case" },
 };
