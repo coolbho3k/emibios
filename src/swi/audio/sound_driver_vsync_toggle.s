@@ -14,28 +14,25 @@ swi_SoundDriverVSyncOff:
     ldr r1, =SOUND_IDENT
     ldr r2, [r0]
     @ Timing note: shared fixed cost prologue pad
-    movs r3, #3
+    movs r3, #2
 .vsoff_pad1:
     subs r3, r3, #1
     bgt  .vsoff_pad1
-    nop
-    nop
-    nop
     cmp  r2, r1
-    bne  .vsoff_ret
-    @ Timing note: fixed cost pad
-    movs r3, #16
-.vsoff_pad2:
-    subs r3, r3, #1
-    bgt  .vsoff_pad2
-    nop
+    bne  .vsoff_skip
+    adds r2, r2, #1
+    str  r2, [r0]
     nop
     movs r2, #0
-    str  r2, [r0]
     ldr  r1, =REG_DMA1CNT_H
     strh r2, [r1]
     strh r2, [r1, #0x0c]
     strb r2, [r0, #0x04]
+    @ Timing note: fixed cost pad
+    movs r3, #11
+.vsoff_pad2:
+    subs r3, r3, #1
+    bgt  .vsoff_pad2
     movs r1, #0x35
     lsls r1, r1, #4
     adds r1, r1, r0
@@ -46,9 +43,22 @@ swi_SoundDriverVSyncOff:
     adds r1, r1, #4
     subs r3, r3, #4
     bgt  .vsoff_clear
+    movs r3, #4
+.vsoff_pad3:
+    subs r3, r3, #1
+    bgt  .vsoff_pad3
     ldr  r1, =SOUND_IDENT
     str  r1, [r0]
-.vsoff_ret:
+    movs r3, #2
+.vsoff_pad4:
+    subs r3, r3, #1
+    bgt  .vsoff_pad4
+    bx   lr
+.vsoff_skip:
+    nop
+    nop
+    nop
+    nop
     bx lr
 
 @ SoundDriverVSyncOn (SWI 0x29): re-enable the FIFO DMA channels using the SAD/DAD already
