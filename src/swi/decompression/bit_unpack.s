@@ -23,12 +23,10 @@
 @
 @ Cycles = DONE + BYTE*bytes + (UNIT+2)*packed + UNIT*skipped.
 .arm
-    .set BUP_BYTE,    6
-    .set BUP_UNIT,    5
-    .set BUP_WORD,    0
-    .set BUP_DONE,    4 @ nops on the offset!=0 done path (after cmp/beq). offset==0 skips them -> -2
-    .set BUP_DONE_RS, 1
-    .set BUP_PRE,     3
+    .set BUP_BYTE, 6
+    .set BUP_UNIT, 5
+    .set BUP_WORD, 0
+    .set BUP_PRE,  2
 swi_BitUnpack:
     push {r4-r11, lr}
     ldrh r4, [r2]
@@ -39,8 +37,9 @@ swi_BitUnpack:
 .bup_afterguard:
     ldrb r6, [r2, #2]
     ldrb r7, [r2, #3]
+    ldr  r9, [r2, #4]
+    and  r9, r9, #BIT31
     ldr  r5, [r2, #4]
-    and  r9, r5, #BIT31
     bic  r5, r5, #BIT31
     mov  r12, #1
     add  r9, r9, r12, lsl r6
@@ -86,17 +85,6 @@ swi_BitUnpack:
     bne  .bup_unit
     b    .bup_byte
 .bup_done:
-    @ Retail is observed 2 cycles cheaper when the added offset is 0, which is the common case of just
-    @ widening packed units with no offset.
-    cmp r5, #0 @ r5 = added offset (data_offset with bit31 cleared)
-    beq .bup_done_zoff
-    .rept BUP_DONE
-    nop
-    .endr
-.bup_done_zoff:
-    .rept BUP_DONE_RS
-    mov r4, r4, lsl r4 @ register-specified shift pad. r4 is restored by the pop below,
-    .endr                      @ so this changes no caller-visible register
 .bup_badsrc:                    @ shared return. On guard fail, dst untouched and r0 = src
     pop {r4-r11, lr}
     bx  lr
