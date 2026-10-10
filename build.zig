@@ -209,6 +209,8 @@ pub fn build(b: *std.Build) void {
 
         const sv_root = b.createModule(.{ .root_source_file = b.path("rom/sound_vsync_off_stub.zig"), .target = arm, .optimize = .ReleaseSmall });
         const sound_vsync_off_gba = buildGbaRom(b, zig, "sound_vsync_off_stub", sv_root, null);
+        const st_root = b.createModule(.{ .root_source_file = b.path("rom/sound_timing_stub.zig"), .target = arm, .optimize = .ReleaseSmall });
+        const sound_timing_gba = buildGbaRom(b, zig, "sound_timing_stub", st_root, null);
 
         // `zig build recal` recalibrates the handoff.
         const rc = b.addRunArtifact(rc_exe);
@@ -247,6 +249,7 @@ pub fn build(b: *std.Build) void {
         test_opts.addOptionPath("sound_reentry_rom", sound_reentry_gba);
         test_opts.addOptionPath("sound_loop_rom", sound_loop_gba);
         test_opts.addOptionPath("sound_vsync_off_rom", sound_vsync_off_gba);
+        test_opts.addOptionPath("sound_timing_rom", sound_timing_gba);
         test_opts.addOptionPath("perm_harness_rom", perm_harness_gba);
         test_opts.addOptionPath("test_rom_path", test_rom_gba);
 
