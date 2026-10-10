@@ -31,6 +31,10 @@
 .equ MBJ_END,              16         @ image end offset (decoded from the authInitCode)
 .equ MBJ_GATE,             20         @ final-word CRC verified (0 = truncated transfer never boots)
 .equ MBJ_FINAL,            24         @ address of the final (length|crc) word, precomputed at authInit
+.equ MBJ_PAL,              28         @ palette byte from authInit
+.equ MBJ_SHOWN,            32         @ last drawn progress offset
+.equ MBJ_IDLE,             36         @ frames since the last JoyBus IRQ
+.equ MBJ_VC,               40         @ last VCOUNT seen
 @ Set by bs_trig_check when Start+Select is held during cart boot.
 .equ MB_MODE_FLAG,         0x03007f1c
 .equ MB_WAIT_TIMEOUT,      0x00200000
@@ -220,10 +224,12 @@ multiboot_receiver_joybus:
 @ Wait with IRQs live until the handler marks the image boot-ready.
 .mbj_wait:
     bl  mbp_tick       @ palette sweep runs in the foreground. The port lives in the IRQ
+    bl  mbj_fg
     ldr r1, =MB_DONE_MARK
     ldr r0, [r1]
     cmp r0, #0xb7
     bne .mbj_wait
+    bl  mbj_fg         @ final progress
     bl  mb_boot_linger @ the retail ~3s post-receive window. The GC polls status through it.
     ldr r1, =MB_DONE_MARK
     ldr r0, [r1]
@@ -281,6 +287,9 @@ mb_joy_seed:
     str  r2, [r3, #MBJ_PHASE] @ phase = 0 (await authInitCode)
     str  r2, [r3, #MBJ_END]   @ image end offset = unknown (decoded from the authInitCode)
     str  r2, [r3, #MBJ_GATE]  @ final-word CRC verified? 0 = no (so a truncated transfer never boots)
+    str  r2, [r3, #MBJ_IDLE]
+    subs r2, #1
+    str  r2, [r3, #MBJ_SHOWN] @ force the first draw
     movs r0, #JOYSTAT_SEND
     strh r0, [r6, #JB_STAT]
     bx   lr
@@ -293,6 +302,54 @@ mb_joy_rearm:
     strh r0, [r6, #JB_STAT]
     bl   mbp_reset
     pop  {pc}
+
+@ JoyBoot foreground: progress, and a new challenge after an idle session.
+mbj_fg:
+    push {r4, r6, lr}
+    ldr  r4, =MBJ_BASE
+    ldr  r6, =REG_KEYINPUT
+    ldr  r0, =VCOUNT
+    ldrh r0, [r0]
+    ldr  r1, [r4, #MBJ_VC]
+    str  r0, [r4, #MBJ_VC]
+    cmp  r0, r1
+    bhs  .mbjf_ui
+    ldr  r2, =REG_IME       @ count idle frames, the IRQ resets it
+    movs r3, #0
+    strh r3, [r2]
+    ldr  r1, [r4, #MBJ_IDLE]
+    adds r1, #1
+    str  r1, [r4, #MBJ_IDLE]
+    cmp  r1, #15
+    blo  .mbjf_idle_ok
+    ldrh r0, [r6, #JB_STAT] @ idle and not ready: new challenge
+    ldr  r1, [r4, #MBJ_PHASE]
+    lsrs r0, r0, #4
+    orrs r0, r1
+    beq  .mbjf_idle_ok
+    movs r1, #0x47
+    strh r1, [r6, #JB_JOYCNT]
+    bl   mb_joy_seed
+    bl   mbp_reset
+    ldr  r2, =REG_IME
+.mbjf_idle_ok:
+    movs r3, #1
+    strh r3, [r2]
+.mbjf_ui:
+    ldr r0, [r4, #MBJ_PHASE]
+    cmp r0, #0
+    beq .mbjf_out
+    ldr r0, [r4, #MBJ_PAL]
+    bl  mbp_tint
+    ldr r0, [r4, #MBJ_OFF]
+    ldr r1, [r4, #MBJ_SHOWN]
+    cmp r0, r1
+    beq .mbjf_out
+    str r0, [r4, #MBJ_SHOWN]
+    ldr r1, [r4, #MBJ_END]
+    bl  mbp_field
+.mbjf_out:
+    pop {r4, r6, pc}
 
 @ SIO/JOY IRQ handler = JoyBoot state machine. One transfer per IRQ. Phases: authInitCode, body.
 @ After the done read, retail stays status 0 while the program boots and takes over the port.
@@ -309,6 +366,9 @@ mb_joy_irq_t:
     ldr  r0, =REG_IF
     movs r1, #0x80
     strh r1, [r0]          @ ack the Serial IRQ
+    ldr  r3, =MBJ_BASE
+    movs r0, #0
+    str  r0, [r3, #MBJ_IDLE]
     ldr  r3, =MB_DONE_MARK
     ldr  r3, [r3]
     cmp  r3, #0xb7
@@ -447,10 +507,6 @@ mb_joy_irq_t:
     str  r4, [r3, #MBJ_OFF]
     str  r5, [r3, #MBJ_KEY]
     str  r7, [r3, #MBJ_CRC]
-    ldr  r1, [r3, #MBJ_END]
-    adds r0, r4, #0
-    bl   mbp_field           @ progress CCCC/TTTT (preserves r4-r7; ~3us of the ~317us budget)
-    ldr  r3, =MBJ_BASE
     ldr  r1, [r3, #MBJ_END]  @ at body end, scrub PSF+TRANS for retail-like done-read status
     cmp  r4, r1
     bne  .mbj_h_ret
@@ -502,13 +558,7 @@ mb_joy_irq_t:
     str  r0, [r3, #MBJ_PHASE] @ phase = 1
     movs r0, #JOYSTAT_PSF1
     strh r0, [r6, #JB_STAT]
-    @ Protocol writes done. UI updates use a gap before the next wire write.
-    adds r0, r4, #0
-    bl   mbp_tint
-    movs r0, #0
-    ldr  r1, =MBJ_BASE
-    ldr  r1, [r1, #MBJ_END]
-    bl   mbp_field @ 0000/TTTT: the denominator is known from here on
+    str  r4, [r3, #MBJ_PAL]   @ tint applied by the foreground
     b    .mbj_h_ret
 .mbj_h_ret:
     pop {r4-r7}
