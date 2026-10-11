@@ -129,3 +129,41 @@ test "a cart whose first word is not a branch and whose logo is bad is treated a
     const h = core.runToHandoff(TIMEOUT_IN_CYCLES);
     try std.testing.expect(h.pc != 0x08000000);
 }
+
+// Boots `rom` holding `buttons` and reports whether SIOCNT ever enters Multiplay mode, i.e. the BIOS listens for multiboot.
+fn listensForMultiboot(rom: []const u8, buttons: u16) !bool {
+    const alloc = std.testing.allocator;
+    const bios = try iface.readFile(alloc, opts.bios_path);
+    defer alloc.free(bios);
+    var core = try emu.Core.create(alloc);
+    defer core.deinit();
+    try core.boot(bios, rom);
+    var frame: u32 = 0;
+    while (frame < 300) : (frame += 1) {
+        core.frameAdvance(.{ .buttons = buttons, .render = false, .sound = false });
+        const siocnt = @as(u16, core.read(.ioregs, 0x128)) | @as(u16, core.read(.ioregs, 0x129)) << 8;
+        if (siocnt & 0x3000 == 0x2000) return true;
+    }
+    return false;
+}
+
+const NO_KEYS: u16 = 0x3ff;
+const B_HELD: u16 = 0x3ff & ~@as(u16, 0x2);
+
+test "a cart with a bad header listens for multiboot unless B is held" {
+    if (!std.mem.eql(u8, opts.emu, "gbahawk")) return error.SkipZigTest;
+    const alloc = std.testing.allocator;
+    const romf = try iface.readFile(alloc, opts.handoff_rom);
+    defer alloc.free(romf);
+    const rom = try alloc.dupe(u8, romf);
+    defer alloc.free(rom);
+
+    try std.testing.expect(!try listensForMultiboot(rom, NO_KEYS));
+    rom[0x10] ^= 0xff; // bad logo, first word still a branch
+    try std.testing.expect(try listensForMultiboot(rom, NO_KEYS));
+    try std.testing.expect(!try listensForMultiboot(rom, B_HELD));
+    rom[0x10] ^= 0xff;
+    rom[0xbd] ^= 0x01; // bad header checksum
+    try std.testing.expect(try listensForMultiboot(rom, NO_KEYS));
+    try std.testing.expect(!try listensForMultiboot(rom, B_HELD));
+}
