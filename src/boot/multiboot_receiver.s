@@ -243,15 +243,11 @@ multiboot_receiver_joybus:
     cmp r0, #0xb7      @ a mid-window GC RESET rewinds the boot. Go back to receiving
     bne .mbj_wait
     bl  mbp_finish     @ settle the palette sweep + park DMA3 before entering the image
-    @ Clear IWRAM, then patch entry to B 0x020000e0 so the JoyBus path runs.
-    ldr  r0, =IWRAM_START
-    ldr  r1, =0x03007e00
-    movs r2, #0
-.mbj_clr:
-    str  r2, [r0]
-    adds r0, #4
-    cmp  r0, r1
-    blo  .mbj_clr
+    @ Zero the length|CRC word and enter at 0x020000e0.
+    ldr  r3, =MBJ_BASE
+    ldr  r0, [r3, #MBJ_FINAL]
+    movs r1, #0
+    str  r1, [r0]
     ldr  r0, =RAM_ENTRYPOINT
     ldr  r1, =0xea000036 @ B 0x020000e0 (JoyBus entry)
     str  r1, [r0]
@@ -273,10 +269,6 @@ multiboot_receiver_joybus:
     ldr  r0, =0x00005088
     ldr  r1, =REG_SIOCNT
     strh r0, [r1] @ SIOCNT handoff value
-    movs r0, #0
-    movs r1, #0
-    ldr  r5, =RAM_ENTRYPOINT
-    mov  lr, r5
     b    mb_boot_tail
 
 @ Seed JoyBoot state and present the challenge nonce. in: r6=JOY base. Clobbers r0-r3.
@@ -1003,36 +995,60 @@ rx_getbit:
     bne  .rx_crc_bad
     ldr  r1, =MB_DONE_MARK
     movs r0, #0xb7
-    str  r0, [r1]          @ done marker
-    bl   mb_boot_linger    @ the retail ~3s post-receive window before entering the image
-    ldr  r5, =MB_RAM_ENTRY @ Normal/Multiplay: enter at the RAM entry point (0xc0)
-    @ fall into the GBA-link boot handoff
-@ Enter Normal/Multiplay image. GBA-link handoff leaves r0=REG_SIO_BASE and r1=SIOCNT.
+    str  r0, [r1]       @ done marker
+    bl   mb_boot_linger @ the retail ~3s post-receive window before entering the image
+@ Normal and Multiplay images enter at 0x020000c0.
 mb_boot_handoff:
-    bl   mbp_finish        @ settle the palette sweep + park DMA3 before entering the image
-    mov  lr, r5
-    ldr  r0, =REG_IE
+    bl  mbp_finish @ settle the palette sweep + park DMA3 before entering the image
+    ldr r0, =RAM_ENTRYPOINT
+    ldr r1, =0xea00002e
+    str r1, [r0]
+    @ JOYCNT IRQ enable. A JOY_TRANS write sets JOYSTAT.SEND.
+    ldr  r0, =REG_JOYCNT
+    movs r1, #0x40
+    strh r1, [r0]
     movs r1, #0
-    strh r1, [r0]
-    ldr  r0, =REG_IME
-    strh r1, [r0]
-    ldr  r0, =REG_SIO_BASE @ r0 = I/O base
-    ldrh r1, [r0, #8]      @ r1 = SIOCNT (this receiver's multiplayer ID)
+    str  r1, [r0, #(REG_JOY_TRANS - REG_JOYCNT)]
 mb_boot_tail:
-    ldr  r2, =SYS_STACK
-    mov  sp, r2
-    movs r2, #0
-    movs r3, #0
-    movs r4, #0
-    movs r5, #0
-    movs r6, #0
-    movs r7, #0
-    mov  r8, r7
-    mov  r9, r7
-    mov  r10, r7
-    mov  r11, r7
-    mov  r12, r7
-    bx   lr
+    ldr r0, =mb_boot_tail_arm
+    bx  r0
+.arm
+.align 2
+@ Reset RAM and IO, zero the registers, enter 0x02000000 in System mode.
+mb_boot_tail_arm:
+    mov  r1, #MMIO_BASE
+    add  r1, r1, #(REG_TM0CNT_L - MMIO_BASE)
+    mvn  r0, #0x74
+    strh r0, [r1]  @ stops at 0xff8d
+    mov  r0, #0x80
+    mov  r2, #0
+    strh r0, [r1, #2]
+    strh r2, [r1, #2]
+    mov  r0, #0x9e @ IWRAM, palette, VRAM, OAM and other IO
+    swi  #0x010000
+    mov  r0, #0x10
+    msr  cpsr_c, #(MODE_IRQ | IRQ_DISABLE | FIQ_DISABLE)
+    msr  spsr_cf, r0
+    mov  lr, #0
+    msr  cpsr_c, #(MODE_SVC | IRQ_DISABLE | FIQ_DISABLE)
+    msr  spsr_cf, r0
+    mov  lr, #0
+    msr  cpsr_c, #(MODE_SYS | IRQ_DISABLE | FIQ_DISABLE)
+    @ Clear the 0x200 bytes RegisterRamReset keeps, then load r0-r12 from them.
+    mov r0, #IWRAM_START
+    add r0, r0, #0x7e00
+    mov r1, #0x200
+    mov r2, #0
+.mbt_clr:
+    subs  r1, r1, #4
+    str   r2, [r0, r1]
+    bne   .mbt_clr
+    add   sp, r0, #(SYS_STACK - 0x03007e00)
+    ldmia r0, {r0-r12}
+    mov   lr, #RAM_ENTRYPOINT
+    msr   cpsr_fc, #MODE_SYS
+    bx    lr
+.thumb
 .rx_crc_bad:                          @ CRC mismatch: drop image and restart transport detect
     b multiboot_receiver_listen
 .rx_setreply:
