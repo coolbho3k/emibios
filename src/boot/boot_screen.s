@@ -342,6 +342,15 @@ bs_draw:
     movs r4, #0
     b    .bs_draw_fin
 .bs_draw_invalid:
+    @ Bad header: multiboot, or diagnostics with B held.
+    ldr  r0, =REG_KEYINPUT
+    ldrh r0, [r0]
+    movs r1, #KEY_B
+    ands r0, r1
+    beq  .bs_draw_diag
+    ldr  r0, =multiboot_receiver_detect + 1
+    bx   r0
+.bs_draw_diag:
     movs r0, #1
     bl   bs_draw_debug
     movs r4, #1
