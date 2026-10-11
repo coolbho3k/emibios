@@ -3,9 +3,18 @@
 @ The receiver side lives in boot/multiboot_receiver.s.
 .thumb
 
-@ Inter-transfer pacing gap, in countdown iterations: 160 iters of the 4-cycle subs/bne = ~38us,
-@ GBATEK's "wait Start-clear + 36us" sender rule.
-.equ MB_XFER_GAP, 160
+@ Gaps between transfers in subs/bne iterations, per call site. About 41us, never under GBATEK's
+@ Start clear plus 36us.
+.equ MB_XFER_GAP,    152
+.equ MB_LEN_GAP,     179
+.equ MB_BODY_GAP,    87
+.equ MB_HALF1_GAP,   91
+.equ MB_HALF2_GAP,   165
+.equ MB_FIRST_GAP,   91
+.equ MB_CRC_GAP,     252
+@ Pause before the length word (1/16 s) and settle after it
+.equ MB_PAUSE_SHIFT, 18
+.equ MB_LEN_SETTLE,  115
 
 @ MultiBoot (SWI 0x25), sender.
 @
@@ -65,10 +74,8 @@ swi_MultiBoot:
     push {r2, r3}
     ldr  r3, =0x0000c37b
     mov  r10, r3
-    movs r3, #1
-    lsls r3, r3, #13
-    tst  r2, r3
-    beq  .mb_poly_done
+    lsls r3, r2, #18 @ Multiplay bit13 to N
+    bpl  .mb_poly_done
     ldr  r3, =0x0000a517
     mov  r10, r3
 .mb_poly_done:
@@ -92,22 +99,26 @@ swi_MultiBoot:
     strh r0, [r1, #0x14] @ RCNT = 0 (select Normal/Multiplay)
     ldr  r1, =REG_IME
     strh r0, [r1]
+    movs r0, #1
+    lsls r0, r0, #MB_PAUSE_SHIFT
+.mb_pause:
+    subs r0, #1
+    bne  .mb_pause
     @ --- length word (llll = bodyWordCount - 0x34). Per GBATEK the SWI resumes HERE, after the game did
     @     recognition, the 0xc0-byte header, palette and handshake. ---
     adds r0, r7, #0
     subs r0, #0x34
     lsls r0, r0, #16
     lsrs r0, r0, #16
-    bl   mb_xfer @ receiver(s) reply 0x73rr
+    movs r1, #MB_LEN_GAP
+    bl   mb_xfer_g @ receiver(s) reply 0x73rr
     @ Build the CRC final-mix tail = rr1 | rr2<<8 | rr3<<16 from the real SIOMULTI2/3 replies
     @ (absent receivers read 0xff), since hardcoding them would mismatch every multi receiver download.
     lsls r0, r0, #24
     lsrs r0, r0, #24
-    ldr  r1, [sp, #0]    @ SIOCNT-start bit13 = Multiplay
-    movs r2, #1
-    lsls r2, r2, #13
-    tst  r1, r2
-    beq  .mb_rr_normal
+    ldr  r1, [sp, #0]
+    lsls r1, r1, #18
+    bpl  .mb_rr_normal
     ldr  r1, =REG_SIO_BASE
     ldrh r2, [r1, #0x04] @ SIOMULTI2 (0xffff if absent)
     lsls r2, r2, #24
@@ -127,10 +138,8 @@ swi_MultiBoot:
     @ second pass after the send would insert a gap that grows with the body size before the 0x65 completion,
     @ and a real receiver desyncs on it.
     ldr  r2, [sp, #0]
-    movs r3, #1
-    lsls r3, r3, #13
-    tst  r2, r3
-    beq  .mb_crc_seed_n
+    lsls r2, r2, #18
+    bpl  .mb_crc_seed_n
     ldr  r2, =0x0000fff8
     b    .mb_crc_seed_d
 .mb_crc_seed_n:
@@ -138,7 +147,11 @@ swi_MultiBoot:
 .mb_crc_seed_d:
     mov r11, r2
     @ --- encrypted main-program transfer ---
-    ldr r6, =MB_RAM_ENTRY @ receiver dest (offset 0xc0)
+    ldr  r6, =MB_RAM_ENTRY @ receiver dest (offset 0xc0)
+    movs r1, #MB_LEN_SETTLE
+.mb_len_settle:
+    subs r1, #1
+    bne  .mb_len_settle
 .mb_body:
     cmp  r7, #0
     beq  .mb_body_done
@@ -158,19 +171,18 @@ swi_MultiBoot:
     ldr  r1, [sp, #4]
     eors r0, r1 @ r0 = ciphertext
     ldr  r1, [sp, #0]
-    movs r2, #1
-    lsls r2, r2, #13
-    tst  r1, r2
-    beq  .mb_body_normal
-    @ Multiplay: send ciphertext as two 16-bit halfwords (low, then high), each its own transfer
-    @ with the same 36us reply-staging gap mb_xfer grants.
+    lsls r2, r1, #18
+    bpl  .mb_body_normal
+    @ Multiplay sends each word as two halfwords, low first.
     ldr  r3, =REG_SIO_BASE
-    bl   mb_send_h
+    movs r2, #MB_HALF1_GAP
+    bl   mb_send_h_g
     lsrs r0, r0, #16
     bl   mb_send_h
     b    .mb_body_adv
 .mb_body_normal:
-    bl mb_xfer
+    movs r1, #MB_BODY_GAP
+    bl   mb_xfer_g
 .mb_body_adv:
     adds r4, #4
     adds r6, #4
@@ -195,20 +207,19 @@ swi_MultiBoot:
     @ The retry budget must cover the RECEIVER's CRC compute: a retail receiver CRCs the whole body
     @ only now, replying 0x74 "busy" throughout (~9ms/KB on real hardware, so ~2.4s at the 256KB
     @ maximum). At ~170us per poll, 0x8000 retries = ~5.5s.
-    ldr r7, =0x00008000
+    ldr  r7, =0x00008000
+    movs r1, #MB_FIRST_GAP
 .mb_comp_wait:
     movs r0, #0x65
-    bl   mb_xfer
+    bl   mb_xfer_g
     lsls r1, r0, #24
     lsrs r1, r1, #24
     cmp  r1, #0x75
     bne  .mb_comp_retry
     @ Multiplay: every client_bit-declared receiver must reply ready before 0x66.
     ldr  r1, [sp, #0]
-    movs r2, #1
-    lsls r2, r2, #13
-    tst  r1, r2
-    beq  .mb_comp_crc
+    lsls r1, r1, #18
+    bpl  .mb_comp_crc
     ldr  r1, [sp, #8]
     ldrb r1, [r1, #0x1e]
     ldr  r3, =REG_SIO_BASE
@@ -226,6 +237,7 @@ swi_MultiBoot:
     cmp  r2, #0x75
     beq  .mb_comp_crc
 .mb_comp_retry:
+    movs r1, #MB_XFER_GAP
     subs r7, #1
     bne  .mb_comp_wait
     movs r0, #1
@@ -234,7 +246,8 @@ swi_MultiBoot:
     movs r0, #0x66
     bl   mb_xfer
     adds r0, r5, #0
-    bl   mb_xfer @ send our CRC. The transfer returns each receiver's CRC reply
+    movs r1, #MB_CRC_GAP
+    bl   mb_xfer_g @ send our CRC. The transfer returns each receiver's CRC reply
     @ Every present receiver must echo our CRC. A mismatch is a corrupted transfer -> fail (caller retries).
     @ Absent Multiplay slots read 0xffff and are skipped. r2 = our CRC low 16.
     lsls r2, r5, #16
@@ -244,10 +257,8 @@ swi_MultiBoot:
     cmp  r0, r2
     bne  .mb_comp_fail
     ldr  r1, [sp, #0]
-    movs r3, #1
-    lsls r3, r3, #13
-    tst  r1, r3
-    beq  .mb_comp_ok
+    lsls r1, r1, #18
+    bpl  .mb_comp_ok
     @ Verify each client_bit-declared receiver's CRC echo (no 0xffff = absent shortcut).
     ldr  r1, [sp, #8]
     ldrb r1, [r1, #0x1e] @ client_bit
@@ -293,43 +304,25 @@ swi_MultiBoot:
 @ Mode-aware single transfer: r0 = out, returns r0 = reply. Clobbers r1-r3 (the caller's r4-r7
 @ survive). Every transfer is preceded by the 36us pacing gap (GBATEK's sender rule: the receiver
 @ stages its reply in that window. A wire capture of a real sender shows exactly this cadence, and
-@ sending with no gap outruns a real receiver and corrupts the transfer) and a bounded readiness
-@ check (Multiplay SD = all units in-mode, Normal SI low = receiver ready).
+@ sending with no gap outruns a real receiver and corrupts the transfer). The gap is in r1. Multiplay
+@ also does a bounded readiness check (SD = all units in-mode).
 @   Normal    (start bit13 = 0): 32-bit SIODATA32 transfer. reply = SIODATA32.
 @   Multiplay (start bit13 = 1): 16-bit transfer via SIOMLT_SEND. reply = SIOMULTI1.
 mb_xfer:
-    ldr  r3, =REG_SIO_BASE
-    ldr  r2, [sp, #0] @ SIOCNT-start
     movs r1, #MB_XFER_GAP
+mb_xfer_g:
+    ldr r3, =REG_SIO_BASE
+    ldr r2, [sp, #0] @ SIOCNT-start
 .mb_xfer_gap:
     subs r1, #1
     bne  .mb_xfer_gap
-    push {r4}
-    ldr  r1, =MB_READY_SPIN
-    movs r4, #1
-    lsls r4, r4, #13
-    tst  r2, r4
-    beq  .mb_xfer_rdyn
-.mb_xfer_rdym:
-    ldrh r4, [r3, #8]
-    lsrs r4, r4, #4 @ SD (bit3) -> carry: 1 = all GBAs ready
-    bcs  .mb_xfer_ready
+    lsls r1, r2, #18
+    bmi  .mb_xfer_multi
+@ Normal 32-bit, padded to the Multiplay path's length
+    movs r1, #5
+.mb_xfer_npad:
     subs r1, #1
-    bne  .mb_xfer_rdym
-    b    .mb_xfer_ready
-.mb_xfer_rdyn:
-    ldrh r4, [r3, #8]
-    lsrs r4, r4, #3 @ SI (bit2) -> carry: 0 = receiver's SO low = ready
-    bcc  .mb_xfer_ready
-    subs r1, #1
-    bne  .mb_xfer_rdyn
-.mb_xfer_ready:
-    pop  {r4}
-    movs r1, #1
-    lsls r1, r1, #13
-    tst  r2, r1
-    bne  .mb_xfer_multi
-@ Normal 32-bit
+    bne  .mb_xfer_npad
     str  r0, [r3, #0]
     strh r2, [r3, #8]
 .mb_xfer_nw:
@@ -342,6 +335,14 @@ mb_xfer:
 @ Multiplay 16-bit
 .mb_xfer_multi:
     strh r0, [r3, #0x0a]
+    ldr  r1, =MB_READY_SPIN
+.mb_xfer_rdym:
+    ldrh r0, [r3, #8]
+    lsrs r0, r0, #4 @ SD (bit3) -> carry: 1 = all GBAs ready
+    bcs  .mb_xfer_go
+    subs r1, #1
+    bne  .mb_xfer_rdym
+.mb_xfer_go:
     strh r2, [r3, #8]
 .mb_xfer_mw:
     ldrh r1, [r3, #8]
@@ -349,8 +350,10 @@ mb_xfer:
     bmi  .mb_xfer_mw
     ldrh r0, [r3, #2] @ SIOMULTI1 (receiver 1 reply)
     bx   lr
+@ Multiplay body halfword. r0 = out, r1 = SIOCNT start, r2 = gap, r3 = REG_SIO_BASE
 mb_send_h:
-    movs r2, #MB_XFER_GAP
+    movs r2, #MB_HALF2_GAP
+mb_send_h_g:
 .msh_gap:
     subs r2, #1
     bne  .msh_gap
