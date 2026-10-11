@@ -120,12 +120,11 @@ bs_nobranch_check:
     ldr  r1, =boot_screen_show + 1
     bx   r1
 
-@ bs_trig_check: sample Start+Select.
-@ ACTION 2 sniffs JoyBus reset. Clobbers r0, r1.
+@ Sample Start+Select, except in ACTION 2. Clobbers r0, r1.
 @ Returns Z clear if multiboot was requested.
 bs_trig_check:
     cmp  r7, #2
-    beq  .btc_sniff
+    beq  .btc_ret
     ldr  r0, =REG_KEYINPUT
     ldrh r1, [r0]
     movs r0, #(KEY_START | KEY_SELECT)
@@ -139,19 +138,6 @@ bs_trig_check:
     ldr  r1, =COL_GRAY
     strh r1, [r0, #4]
     strh r1, [r0, #36]
-    b    .btc_ret
-.btc_sniff:
-    @ GameCube reset latches JOYCNT.RESET while RCNT selects JoyBus.
-    ldr  r0, =REG_RCNT
-    ldr  r1, =RCNT_JOYBUS
-    strh r1, [r0]
-    ldr  r0, =REG_JOYCNT
-    ldrh r0, [r0]
-    movs r1, #JOYCNT_RESET
-    ands r0, r1
-    beq  .btc_ret
-    ldr  r0, =multiboot_receiver_joybus + 1
-    bx   r0
 .btc_ret:
     ldr  r0, =MB_MODE_FLAG
     ldrb r0, [r0]

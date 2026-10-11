@@ -93,6 +93,10 @@ multiboot_receiver_listen:
     ldr  r6, =REG_SIO_BASE @ SIO base: SIODATA32 +0, SIOCNT +8, SIOMLT_SEND +0xa, RCNT +0x14
     ldr  r5, =REG_IF       @ IF
     ldr  r4, =REG_JOYCNT   @ JOYCNT
+    ldr  r0, =RCNT_JOYBUS  @ clear stale JoyBus flags
+    strh r0, [r6, #0x14]
+    movs r0, #7
+    strh r0, [r4]
     movs r0, #0
     strh r0, [r6, #0x14]
     str  r0, [r6, #0x00]   @ pre-commit senders see zero, not stale junk
@@ -128,6 +132,12 @@ multiboot_receiver_listen:
     bne  .det_mp
     ldr  r0, =RCNT_JOYBUS @ JoyBus dwell
     strh r0, [r6, #0x14]
+    @ Ack stale flags, present status 0x08.
+    movs r0, #7
+    strh r0, [r4]
+    ldr  r0, [r4, #(REG_JOY_RECV - REG_JOYCNT)]
+    movs r0, #0
+    str  r0, [r4, #(REG_JOY_TRANS - REG_JOYCNT)]
     mov  r3, r9
 .det_jb:
     ldrh r0, [r4]
@@ -195,11 +205,6 @@ multiboot_receiver_listen:
 multiboot_receiver_joybus:
     ldr  r0, =SYS_STACK
     mov  sp, r0            @ private stack
-    movs r0, #0            @ a JoyBus reset can arrive mid animation: stop the wobble DMA
-    ldr  r1, =REG_DMA0CNT_H
-    strh r0, [r1]
-    ldr  r1, =REG_BG0HOFS
-    strh r0, [r1]
     ldr  r6, =REG_KEYINPUT @ base for all JOY register accesses
     ldr  r0, =RCNT_JOYBUS
     strh r0, [r6, #JB_RCNT]
@@ -221,6 +226,8 @@ multiboot_receiver_joybus:
     movs r0, #1
     strh r0, [r2, #8]
     bl   mb_joy_seed
+    movs r0, #(JOYSTAT_PSF0 | JOYSTAT_SEND)
+    strh r0, [r6, #JB_STAT]
 @ Wait with IRQs live until the handler marks the image boot-ready.
 .mbj_wait:
     bl  mbp_tick       @ palette sweep runs in the foreground. The port lives in the IRQ
@@ -275,6 +282,7 @@ multiboot_receiver_joybus:
 @ Seed JoyBoot state and present the challenge nonce. in: r6=JOY base. Clobbers r0-r3.
 mb_joy_seed:
     ldr  r3, =MBJ_BASE
+    ldr  r0, [r6, #JB_RECV]   @ drop a stale received word
     ldr  r0, =0xc0debabe      @ challenge nonce
     str  r0, [r6, #JB_TRANS]
     ldr  r1, =MB_LCG_MUL
