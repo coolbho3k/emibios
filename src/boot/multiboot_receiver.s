@@ -130,6 +130,8 @@ multiboot_receiver_listen:
     bne  .det_go_joybus
     subs r3, #1
     bne  .det_mp
+    ldr  r0, =0x00005088  @ JoyBoot handoff SIOCNT, outside JoyBus mode
+    strh r0, [r6, #0x08]
     ldr  r0, =RCNT_JOYBUS @ JoyBus dwell
     strh r0, [r6, #0x14]
     @ Ack stale flags, present status 0x08.
@@ -143,7 +145,7 @@ multiboot_receiver_listen:
     ldrh r0, [r4]
     movs r1, #JOYCNT_RESET
     tst  r0, r1
-    bne  .det_go_joybus
+    bne  .det_go_jb_live
     subs r3, #1
     bne  .det_jb
     movs r0, #0          @ Normal-32 dwell
@@ -178,6 +180,9 @@ multiboot_receiver_listen:
     mov r10, r3
     b   .det_round
 .det_go_joybus:
+    ldr  r0, =0x00005088 @ same as the JoyBus dwell
+    strh r0, [r6, #0x08]
+.det_go_jb_live:
     b multiboot_receiver_joybus
 @ A completed transfer can be cross-mode noise. Commit only on the repeated recognition word.
 .det_go_multi:
@@ -266,9 +271,6 @@ multiboot_receiver_joybus:
     strh r0, [r6, #JB_STAT]
     movs r0, #0x40
     strh r0, [r6, #JB_JOYCNT]
-    ldr  r0, =0x00005088
-    ldr  r1, =REG_SIOCNT
-    strh r0, [r1] @ SIOCNT handoff value
     b    mb_boot_tail
 
 @ Seed JoyBoot state and present the challenge nonce. in: r6=JOY base. Clobbers r0-r3.
