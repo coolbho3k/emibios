@@ -151,7 +151,7 @@ multiboot_receiver_listen:
     movs r0, #0          @ Normal-32 dwell
     strh r0, [r6, #0x14]
     str  r0, [r6, #0x00] @ idle reply 0 (what a pre-commit retail receiver presents)
-    ldr  r0, =0x00005080
+    ldr  r0, =0x00005088
     strh r0, [r6, #0x08]
     movs r0, #0x80       @ drain stale SIO IF (see the Multiplay dwell)
     strh r0, [r5]
@@ -1072,7 +1072,7 @@ mb_boot_tail_arm:
     lsrs r1, r1, #16     @ echo = low 16 of the sender's last word
     orrs r3, r1
     str  r3, [r6, #0x00] @ SIODATA32 = (reply << 16) | echo
-    ldr  r1, =0x00005080 @ arm only after reply is loaded
+    ldr  r1, =0x00005088 @ arm only after reply is loaded
     strh r1, [r6, #0x08]
     bx   lr
 
