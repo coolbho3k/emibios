@@ -1029,13 +1029,16 @@ mb_boot_tail_arm:
     mov  r0, #0x9e @ IWRAM, palette, VRAM, OAM and other IO
     swi  #0x010000
     mov  r0, #0x10
-    msr  cpsr_c, #(MODE_IRQ | IRQ_DISABLE | FIQ_DISABLE)
+    mov  r1, #(MODE_IRQ | IRQ_DISABLE | FIQ_DISABLE)
+    msr  cpsr_c, r1
     msr  spsr_cf, r0
     mov  lr, #0
-    msr  cpsr_c, #(MODE_SVC | IRQ_DISABLE | FIQ_DISABLE)
+    mov  r1, #(MODE_SVC | IRQ_DISABLE | FIQ_DISABLE)
+    msr  cpsr_c, r1
     msr  spsr_cf, r0
     mov  lr, #0
-    msr  cpsr_c, #(MODE_SYS | IRQ_DISABLE | FIQ_DISABLE)
+    mov  r1, #(MODE_SYS | IRQ_DISABLE | FIQ_DISABLE)
+    msr  cpsr_c, r1
     @ Clear the 0x200 bytes RegisterRamReset keeps, then load r0-r12 from them.
     mov r0, #IWRAM_START
     add r0, r0, #0x7e00
@@ -1046,9 +1049,10 @@ mb_boot_tail_arm:
     str   r2, [r0, r1]
     bne   .mbt_clr
     add   sp, r0, #(SYS_STACK - 0x03007e00)
+    mov   r1, #MODE_SYS
+    msr   cpsr_fc, r1
     ldmia r0, {r0-r12}
     mov   lr, #RAM_ENTRYPOINT
-    msr   cpsr_fc, #MODE_SYS
     bx    lr
 .thumb
 .rx_crc_bad:                          @ CRC mismatch: drop image and restart transport detect
