@@ -38,7 +38,7 @@ pub const DIAG = [_]Diag{
 pub const Loc = enum { ro, iw, ew };
 pub const BupWidth = struct { sw: u8, dw: u8 };
 pub const BUP_WIDTHS = [_]BupWidth{
-    .{ .sw = 1, .dw = 1 }, .{ .sw = 1, .dw = 2 },  .{ .sw = 1, .dw = 4 },  .{ .sw = 1, .dw = 8 },
+    .{ .sw = 1, .dw = 1 },  .{ .sw = 1, .dw = 2 },  .{ .sw = 1, .dw = 4 }, .{ .sw = 1, .dw = 8 },
     .{ .sw = 1, .dw = 16 }, .{ .sw = 1, .dw = 32 }, .{ .sw = 2, .dw = 8 }, .{ .sw = 4, .dw = 16 },
     .{ .sw = 8, .dw = 32 },
 };
