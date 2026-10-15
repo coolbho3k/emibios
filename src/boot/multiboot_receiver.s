@@ -479,11 +479,15 @@ mb_joy_irq_t:
     ldr  r1, =0x20796220
     eors r0, r1 @ -> plaintext
     @ Final word is (totalBytes<<16)|crc16 over prior body words. Verify, do not fold.
-    ldr r1, [r3, #MBJ_FINAL]
-    cmp r4, r1
-    beq .mbj_h_final
-    bl  mb_crc @ updates r7 (crc), clobbers r1-r3, preserves r0,r4,r5,r6
-    b   .mbj_h_store
+    ldr  r1, [r3, #MBJ_FINAL]
+    cmp  r4, r1
+    beq  .mbj_h_final
+    adds r2, r7, #0
+    eors r2, r0
+    ldr  r1, =0x0000a1c1
+    bl   mb_crcfold @ clobbers r1-r3
+    adds r7, r2, #0
+    b    .mbj_h_store
 .mbj_h_final:
     lsls r1, r0, #16
     lsrs r1, r1, #16         @ received CRC (low 16)
@@ -503,7 +507,7 @@ mb_joy_irq_t:
 .mbj_h_store:
     str  r0, [r4]
     adds r4, #4
-    ldr  r3, =MBJ_BASE       @ mb_crc clobbered r3. Reload the state base
+    ldr  r3, =MBJ_BASE       @ reload after mb_crcfold
     ldr  r1, =RAM_ENTRYPOINT
     subs r4, r1
     str  r4, [r3, #MBJ_OFF]
@@ -588,25 +592,6 @@ mb_boot_linger:
     subs r4, #1
     bne  .mbl_frame
     pop  {r4, pc}
-
-@ CRC-16 step over a 32-bit plaintext word. in: r0=word, r7=crc. Preserves r0,r4,r5,r6.
-mb_crc:
-    push {r0}
-    movs r2, #32
-    ldr  r3, =0x0000a1c1
-.mb_crc_bit:
-    adds r1, r0, #0
-    eors r1, r7
-    lsrs r7, r7, #1
-    lsrs r1, r1, #1 @ test old bit0 (-> carry)
-    bcc  .mb_crc_no
-    eors r7, r3
-.mb_crc_no:
-    lsrs r0, r0, #1
-    subs r2, #1
-    bne  .mb_crc_bit
-    pop  {r0}
-    bx   lr
 
     .ltorg
 
@@ -910,11 +895,11 @@ rx_getbit:
     eors r0, r1        @ -> plaintext
     str  r0, [r7]
     @ Fold CRC incrementally so completion is ready for the 0x65 retries.
-    mov  r1, r10
-    eors r0, r1
-    ldr  r2, [sp, #RXF_POLY]
-    bl   .rx_crc32
-    mov  r10, r0
+    mov  r2, r10
+    eors r2, r0
+    ldr  r1, [sp, #RXF_POLY]
+    bl   mb_crcfold
+    mov  r10, r2
     adds r7, #4
     adds r0, r7, #0
     ldr  r1, =RAM_ENTRYPOINT
@@ -940,9 +925,10 @@ rx_getbit:
     orrs r1, r3
 .rx_fin_mixed:
     eors r0, r1
-    ldr  r2, [sp, #RXF_POLY]
-    bl   .rx_crc32
-    adds r5, r0, #0 @ final CRC (low 16 replied at 0x66)
+    adds r2, r0, #0
+    ldr  r1, [sp, #RXF_POLY]
+    bl   mb_crcfold
+    adds r5, r2, #0 @ final CRC (low 16 replied at 0x66)
     @ Patch boot mode [0xc4] and receiver ID [0xc5].
     ldr  r0, =MB_RAM_ENTRY
     mov  r3, r11
@@ -1093,18 +1079,6 @@ rx_pack3:
     ldrh r1, [r6, #0x06] @ SIOMULTI3
     lsls r1, r1, #24
     orrs r3, r1
-    bx   lr
-
-@ CRC-16 fold, 32 bits. in: r0 = crc ^ word, r2 = poly. out: r0 = crc. Clobbers r1.
-.rx_crc32:
-    movs r1, #32
-.rx_crc32_bit:
-    lsrs r0, r0, #1
-    bcc  .rx_crc32_no
-    eors r0, r2
-.rx_crc32_no:
-    subs r1, #1
-    bne  .rx_crc32_bit
     bx   lr
 
     .ltorg
