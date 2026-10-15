@@ -216,8 +216,6 @@ multiboot_receiver_joybus:
     movs r0, #0
     ldr  r1, =MB_DONE_MARK
     str  r0, [r1]          @ may hold stale data pre-RamReset
-    @ Fresh receive UI per session.
-    bl mbp_reset
     @ Route SIO/JOY IRQs through the BIOS user-IRQ vector.
     ldr r0, =mb_joy_irq @ ARM trampoline (exception_irq's ldr-pc runs it in ARM)
     ldr r1, =USER_IRQ_VECTOR_MIRROR
@@ -235,19 +233,27 @@ multiboot_receiver_joybus:
     strh r0, [r6, #JB_STAT]
 @ Wait with IRQs live until the handler marks the image boot-ready.
 .mbj_wait:
-    bl  mbp_tick       @ palette sweep runs in the foreground. The port lives in the IRQ
-    bl  mbj_fg
-    ldr r1, =MB_DONE_MARK
-    ldr r0, [r1]
-    cmp r0, #0xb7
-    bne .mbj_wait
-    bl  mbj_fg         @ final progress
-    bl  mb_boot_linger @ the retail ~3s post-receive window. The GC polls status through it.
-    ldr r1, =MB_DONE_MARK
-    ldr r0, [r1]
-    cmp r0, #0xb7      @ a mid-window GC RESET rewinds the boot. Go back to receiving
-    bne .mbj_wait
-    bl  mbp_finish     @ settle the palette sweep + park DMA3 before entering the image
+    bl   mbp_tick       @ palette sweep runs in the foreground. The port lives in the IRQ
+    bl   mbj_fg
+    ldr  r1, =MB_DONE_MARK
+    ldr  r0, [r1]
+    cmp  r0, #0xb7
+    bne  .mbj_wait
+    bl   mbj_fg         @ final progress
+    movs r0, #180
+    bl   mb_boot_linger @ the retail ~3s post-receive window. The GC polls status through it.
+    ldr  r2, =REG_IME
+    movs r0, #0
+    strh r0, [r2]
+    ldr  r1, =MB_DONE_MARK
+    ldr  r0, [r1]
+    cmp  r0, #0xb7      @ a mid-window GC RESET rewinds the boot. Go back to receiving
+    beq  .mbj_go
+    movs r0, #1
+    strh r0, [r2]
+    b    .mbj_wait
+.mbj_go:
+    bl mbp_finish @ settle the palette sweep + park DMA3 before entering the image
     @ Zero the length|CRC word and enter at 0x020000e0.
     ldr  r3, =MBJ_BASE
     ldr  r0, [r3, #MBJ_FINAL]
@@ -302,10 +308,9 @@ mb_joy_rearm:
     bl   mb_joy_seed
     movs r0, #(JOYSTAT_PSF0 | JOYSTAT_SEND)
     strh r0, [r6, #JB_STAT]
-    bl   mbp_reset
     pop  {pc}
 
-@ JoyBoot foreground: progress, and a new challenge after an idle session.
+@ JoyBoot foreground: UI, and back to listening after an idle session.
 mbj_fg:
     push {r4, r6, lr}
     ldr  r4, =MBJ_BASE
@@ -316,7 +321,7 @@ mbj_fg:
     str  r0, [r4, #MBJ_VC]
     cmp  r0, r1
     bhs  .mbjf_ui
-    ldr  r2, =REG_IME       @ count idle frames, the IRQ resets it
+    ldr  r2, =REG_IME @ count idle frames, the IRQ resets it
     movs r3, #0
     strh r3, [r2]
     ldr  r1, [r4, #MBJ_IDLE]
@@ -324,20 +329,20 @@ mbj_fg:
     str  r1, [r4, #MBJ_IDLE]
     cmp  r1, #15
     blo  .mbjf_idle_ok
-    ldrh r0, [r6, #JB_STAT] @ idle and not ready: new challenge
-    ldr  r1, [r4, #MBJ_PHASE]
-    lsrs r0, r0, #4
-    orrs r0, r1
-    beq  .mbjf_idle_ok
-    movs r1, #0x47
-    strh r1, [r6, #JB_JOYCNT]
-    bl   mb_joy_seed
-    bl   mbp_reset
-    ldr  r2, =REG_IME
+    ldr  r1, =REG_IE  @ idle session: listen for every transport again
+    strh r3, [r1]
+    b    multiboot_receiver_listen
 .mbjf_idle_ok:
     movs r3, #1
     strh r3, [r2]
 .mbjf_ui:
+    ldr  r0, [r4, #MBJ_SHOWN]
+    adds r0, #1 @ -1: a new challenge was seeded, reset the UI
+    bne  .mbjf_phase
+    subs r0, #2
+    str  r0, [r4, #MBJ_SHOWN]
+    bl   mbp_reset
+.mbjf_phase:
     ldr r0, [r4, #MBJ_PHASE]
     cmp r0, #0
     beq .mbjf_out
@@ -383,7 +388,7 @@ mb_joy_irq_t:
     ldr  r1, =MB_DONE_MARK
     movs r0, #0
     str  r0, [r1]
-    bl   mb_joy_rearm @ full receive-UI unwind (sweep parked, logo purple, "RDY")
+    bl   mb_joy_rearm @ the foreground resets the UI
     b    .mbj_h_ret
 .mbj_h_boot_ack:
     movs r1, #0x47
@@ -448,14 +453,7 @@ mb_joy_irq_t:
     adds r1, r2
     cmp  r4, r1             @ (r4 is the full dest address. End is an image offset)
     blo  .mbj_h_body
-    movs r0, #0
-    strh r0, [r6, #JB_STAT]
-    ldr  r0, =0x020001f8
-    ldr  r1, [r0, #4]
-    ldr  r0, [r0]
-    muls r0, r1
-    str  r0, [r6, #JB_TRANS]
-    b    .mbj_h_ret
+    b    .mbj_h_done_read
 .mbj_h_body:
     @ Ack before decrypt+CRC. The GC polls JOYSTAT immediately after each word.
     adds r1, r4, #0
@@ -507,15 +505,16 @@ mb_joy_irq_t:
 .mbj_h_store:
     str  r0, [r4]
     adds r4, #4
-    ldr  r3, =MBJ_BASE       @ reload after mb_crcfold
+    ldr  r3, =MBJ_BASE      @ reload after mb_crcfold
     ldr  r1, =RAM_ENTRYPOINT
     subs r4, r1
     str  r4, [r3, #MBJ_OFF]
     str  r5, [r3, #MBJ_KEY]
     str  r7, [r3, #MBJ_CRC]
-    ldr  r1, [r3, #MBJ_END]  @ at body end, scrub PSF+TRANS for retail-like done-read status
+    ldr  r1, [r3, #MBJ_END] @ at body end, scrub PSF+TRANS for retail-like done-read status
     cmp  r4, r1
     bne  .mbj_h_ret
+.mbj_h_done_read:
     movs r0, #0
     strh r0, [r6, #JB_STAT]
     ldr  r0, =0x020001f8
@@ -551,6 +550,9 @@ mb_joy_irq_t:
     lsls r1, r1, #3         @ *8 bytes per pair
     ldr  r2, =0x204
     adds r1, r2
+    ldr  r2, =0x40000
+    cmp  r1, r2
+    bhi  .mbj_h_badimg
     str  r1, [r3, #MBJ_END] @ image end offset
     ldr  r2, =(RAM_ENTRYPOINT - 4)
     adds r2, r1
@@ -572,26 +574,18 @@ mb_joy_irq_t:
     @ bx, not pop-pc: switch back to ARM for exception_irq's IRET.
     bx r3
 
-@ Retail leaves ~3s between transfer end and image entry. Senders rely on that window.
-@ Clobbers r0-r2.
+@ Wait r0 frames before entering the image. Senders rely on that window. Clobbers r0-r2.
 mb_boot_linger:
     push {r4, lr}
-    movs r4, #180
+    ldr  r1, =MBP_FRAMES
+    ldr  r4, [r1]
+    adds r4, r4, r0 @ frame count to wait for
 .mbl_frame:
-    ldr r0, =REG_VCOUNT
-.mbl_w1:
-    bl   mbp_tick @ tick continuously so its edge detector sees non-VBlank too
-    ldrh r1, [r0]
-    cmp  r1, #160
-    beq  .mbl_w1
-.mbl_w2:
-    bl   mbp_tick
-    ldrh r1, [r0]
-    cmp  r1, #160
-    bne  .mbl_w2
-    subs r4, #1
-    bne  .mbl_frame
-    pop  {r4, pc}
+    bl  mbp_tick @ counts frames, preserves all registers
+    ldr r2, [r1]
+    cmp r2, r4
+    bne .mbl_frame
+    pop {r4, pc}
 
     .ltorg
 
@@ -755,8 +749,13 @@ rx_getbit:
     b    .rxn_loop
 .rx_post:                             @ post-header wait: 0x62xx -> 0x72|bit. 0x63pp -> enter palette
     lsrs r1, r0, #8
+    cmp  r1, #0x61
+    beq  .rx_recog_adv
     cmp  r1, #0x63
     bne  .rx_post_wait
+    ldr  r1, =MBP_FRAMES @ count frames from the palette exchange start
+    movs r2, #0
+    str  r2, [r1]
     movs r4, #3
     b    .rx_palette
 .rx_post_wait:
@@ -775,22 +774,28 @@ rx_getbit:
     lsrs r1, r0, #8
     cmp  r1, #0x64
     beq  .rx_palette_hs
+    cmp  r1, #0x61
+    beq  .rx_recog_adv
+    cmp  r1, #0x62
+    bne  .rx_pal_byte
+    movs r4, #2
+    b    .rx_post_wait
+.rx_pal_byte:
     lsls r1, r0, #24
     lsrs r1, r1, #24
-    adds r5, r1, #0 @ seed low = pp (cd1..cd3 folded in at the handshake below)
+    adds r5, r1, #0 @ seed low = pp
+    adds r3, r5, #0
+    bl   rx_pack3   @ Multiplay: every receiver's cc, as this transfer showed them to the sender
+    adds r5, r3, #0
     ldr  r2, =(0x7300 | RX_CC)
     bl   .rx_reply_now
     adds r0, r5, #0
     bl   mbp_tint   @ recolor after staging
     b    .rxn_loop
 .rx_palette_hs:                       @ 0x64hh -> finalize the cipher seed, reply 0x73rr
-    @ Multiplay seed folds all receivers' cd bytes, so read all SIOMULTI slots.
-    mov  r1, r11
-    cmp  r1, #0
-    beq  .rx_pal_hs_n32
-    adds r3, r5, #0
-    bl   rx_pack3
-    adds r5, r3, #0 @ cipher seed m
+    mov r1, r11
+    cmp r1, #0
+    beq .rx_pal_hs_n32
     @ Stash hh from the wire for final CRC mix. It is not recomputable from seed.
     lsls r1, r0, #24
     lsrs r1, r1, #24
@@ -799,10 +804,9 @@ rx_getbit:
     b    .rx_pal_hs_reply
 .rx_pal_hs_n32:                       @ Normal single receiver: seed = pp | cc<<8 | 0xffff<<16
     @ Normal seed uses absent receivers as 0xff: m=0xffffccpp.
-    movs r1, #RX_CC
-    lsls r1, r1, #8
-    orrs r5, r1
-    ldr  r1, =0xffff0000
+    lsls r5, r5, #24
+    lsrs r5, r5, #24
+    ldr  r1, =(0xffff0000 | (RX_CC << 8))
     orrs r5, r1
     @ Stash wire hh. Sender includes absent receivers in it too.
     lsls r1, r0, #24
@@ -952,20 +956,26 @@ rx_getbit:
     b .rxn_loop @ reply + next state were staged at .rx_body_proc, before the decrypt
 .rx_comp:                             @ state 7, first 0x0065 -> reply 0x0074 (busy), advance to state 9
     @ Completion is 0x0074 busy, then 0x0075 ready, then 0x0066 CRC exchange.
-    lsls r1, r0, #24
-    lsrs r1, r1, #24
-    cmp  r1, #0x66
-    beq  .rx_comp_crc
+    bl   .rx_comp_word
     ldr  r2, =0x00000074 @ busy
     movs r4, #9
     b    .rx_setreply
 .rx_comp_ready:                       @ state 9, 0x0065 -> 0x0075 (ready, idempotent). 0x0066 -> CRC exchange
-    lsls r1, r0, #24
-    lsrs r1, r1, #24
+    bl  .rx_comp_word
+    ldr r2, =0x00000075 @ ready
+    b   .rx_setreply
+@ Returns on 0x0065. 0x0066 goes to the CRC exchange, anything else restarts recognition.
+.rx_comp_word:
+    lsls r1, r0, #16
+    lsrs r1, r1, #16
+    cmp  r1, #0x65
+    bne  .rx_comp_other
+    bx   lr
+.rx_comp_other:
     cmp  r1, #0x66
     beq  .rx_comp_crc
-    ldr  r2, =0x00000075 @ ready
-    b    .rx_setreply
+    movs r4, #0
+    b    .rx_recog
 .rx_comp_crc:                         @ 0x0066: reply our CRC (low 16). The sender verifies it
     adds r2, r5, #0
     lsls r2, r2, #16
@@ -983,8 +993,17 @@ rx_getbit:
     bne  .rx_crc_bad
     ldr  r1, =MB_DONE_MARK
     movs r0, #0xb7
-    str  r0, [r1]       @ done marker
-    bl   mb_boot_linger @ the retail ~3s post-receive window before entering the image
+    str  r0, [r1] @ done marker
+    @ Enter 178 frames after the palette exchange started, and at least 54 after the transfer.
+    ldr  r0, =MBP_FRAMES
+    ldr  r0, [r0]
+    movs r1, #178
+    subs r0, r1, r0
+    cmp  r0, #54
+    bge  .rx_linger
+    movs r0, #54
+.rx_linger:
+    bl mb_boot_linger
 @ Normal and Multiplay images enter at 0x020000c0.
 mb_boot_handoff:
     bl  mbp_finish @ settle the palette sweep + park DMA3 before entering the image

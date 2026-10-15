@@ -7,9 +7,9 @@
 @ Start clear plus 36us.
 .equ MB_XFER_GAP,    152
 .equ MB_LEN_GAP,     179
-.equ MB_BODY_GAP,    87
-.equ MB_HALF1_GAP,   91
-.equ MB_HALF2_GAP,   165
+.equ MB_BODY_GAP,    86
+.equ MB_HALF1_GAP,   89
+.equ MB_HALF2_GAP,   163
 .equ MB_FIRST_GAP,   91
 .equ MB_CRC_GAP,     252
 @ Pause before the length word (1/16 s) and settle after it
@@ -19,8 +19,8 @@
 @ MultiBoot (SWI 0x25), sender.
 @
 @ Entry:  r0 = MultiBootParam*, r1 = mode (0=Normal 256KHz, 1=Multiplay 115KHz, 2=Normal 2MHz)
-@ Return: r0 = 0 (ok) / 1 (fail: invalid mode, completion timeout, or CRC mismatch); r4-r7
-@ saved/restored, r2/r11/r12 dispatcher-restored.
+@ Return: r0 = 0 (ok) / 1 (fail: invalid mode, empty image, wrong body reply, completion timeout, or
+@ CRC mismatch); r4-r7 saved/restored, r2/r11/r12 dispatcher-restored.
 @
 @ The game handles receiver recognition, the 0xc0-byte header, palette exchange, and handshake.
 @ The SWI sends the length word and encrypted body, then completes the 0x65/0x66 CRC exchange.
@@ -82,7 +82,15 @@ swi_MultiBoot:
     ldr  r4, [r0, #0x20] @ src = boot_srcp
     ldr  r1, [r0, #0x24] @ boot_endp
     subs r7, r1, r4
-    lsrs r7, r7, #2      @ r7 = body word count
+    lsrs r7, r7, #3
+    lsls r7, r7, #1      @ whole 8 byte units
+    bne  .mb_size_ok
+    b    .mb_fail
+.mb_size_ok:
+    subs r7, #0x34
+    lsls r7, r7, #16
+    lsrs r7, r7, #16
+    adds r7, #0x34 @ r7 = body word count, as the 16 bit length word carries it
     @ seed m = palette | cd1<<8 | cd2<<16 | cd3<<24 (an absent receiver's cd reads as 0xff)
     ldrb r5, [r0, #0x1c] @ palette_data
     ldrb r1, [r0, #0x19] @ receiver_data[1]
@@ -173,16 +181,32 @@ swi_MultiBoot:
     ldr  r1, [sp, #0]
     lsls r2, r1, #18
     bpl  .mb_body_normal
-    @ Multiplay sends each word as two halfwords, low first.
+    @ Multiplay sends each word as two halfwords, low first. Each reply must be its offset.
     ldr  r3, =REG_SIO_BASE
     movs r2, #MB_HALF1_GAP
     bl   mb_send_h_g
+    lsls r2, r6, #16
+    lsrs r2, r2, #16
+    ldrh r1, [r3, #2]
+    cmp  r1, r2
+    bne  .mb_fail
+    ldr  r1, [sp, #0]
     lsrs r0, r0, #16
     bl   mb_send_h
+    lsls r2, r6, #16
+    lsrs r2, r2, #16
+    adds r2, #2
+    ldrh r1, [r3, #2]
+    cmp  r1, r2
+    bne  .mb_fail
     b    .mb_body_adv
 .mb_body_normal:
     movs r1, #MB_BODY_GAP
     bl   mb_xfer_g
+    lsls r2, r6, #16
+    lsrs r2, r2, #16
+    cmp  r0, r2
+    bne  .mb_fail
 .mb_body_adv:
     adds r4, #4
     adds r6, #4
@@ -203,19 +227,24 @@ swi_MultiBoot:
     mov  r1, r10
     bl   mb_crcfold
     adds r5, r2, #0
-    @ completion: send 0x0065 until the receiver replies ..0x75, then 0x0066, then exchange the CRC.
-    @ The retry budget must cover the RECEIVER's CRC compute: a retail receiver CRCs the whole body
-    @ only now, replying 0x74 "busy" throughout (~9ms/KB on real hardware, so ~2.4s at the 256KB
-    @ maximum). At ~170us per poll, 0x8000 retries = ~5.5s.
-    ldr  r7, =0x00008000
+    @ completion: send 0x0065 while the receiver replies 0x0074 (busy, no limit), then 0x0066 on 0x0075,
+    @ then exchange the CRC. Any other reply fails. The first reply is still the last body offset.
+    movs r7, #1
     movs r1, #MB_FIRST_GAP
+    b    .mb_comp_wait
+.mb_comp_poll:
+    movs r1, #MB_XFER_GAP
 .mb_comp_wait:
     movs r0, #0x65
     bl   mb_xfer_g
-    lsls r1, r0, #24
-    lsrs r1, r1, #24
-    cmp  r1, #0x75
-    bne  .mb_comp_retry
+    subs r7, #1
+    beq  .mb_comp_poll
+    lsls r0, r0, #16
+    lsrs r0, r0, #16
+    cmp  r0, #0x74
+    beq  .mb_comp_poll
+    cmp  r0, #0x75
+    bne  .mb_fail
     @ Multiplay: every client_bit-declared receiver must reply ready before 0x66.
     ldr  r1, [sp, #0]
     lsls r1, r1, #18
@@ -226,22 +255,24 @@ swi_MultiBoot:
     movs r2, #0x04
     tst  r1, r2
     beq  .mb_cw_r3
-    ldrh r2, [r3, #0x04]
-    cmp  r2, #0x75
-    bne  .mb_comp_retry
+    ldrh r0, [r3, #0x04]
+    bl   .mb_comp_slot
 .mb_cw_r3:
     movs r2, #0x08
     tst  r1, r2
     beq  .mb_comp_crc
-    ldrh r2, [r3, #0x06]
-    cmp  r2, #0x75
-    beq  .mb_comp_crc
-.mb_comp_retry:
-    movs r1, #MB_XFER_GAP
-    subs r7, #1
-    bne  .mb_comp_wait
-    movs r0, #1
-    b    .mb_return
+    ldrh r0, [r3, #0x06]
+    bl   .mb_comp_slot
+    b    .mb_comp_crc
+@ Another receiver's completion reply in r0: returns on 0x0075, polls again on 0x0074, else fails.
+.mb_comp_slot:
+    cmp r0, #0x75
+    bne .mb_comp_slot_wait
+    bx  lr
+.mb_comp_slot_wait:
+    cmp r0, #0x74
+    beq .mb_comp_poll
+    b   .mb_fail
 .mb_comp_crc:
     movs r0, #0x66
     bl   mb_xfer
@@ -249,7 +280,7 @@ swi_MultiBoot:
     movs r1, #MB_CRC_GAP
     bl   mb_xfer_g @ send our CRC. The transfer returns each receiver's CRC reply
     @ Every present receiver must echo our CRC. A mismatch is a corrupted transfer -> fail (caller retries).
-    @ Absent Multiplay slots read 0xffff and are skipped. r2 = our CRC low 16.
+    @ r2 = our CRC low 16.
     lsls r2, r5, #16
     lsrs r2, r2, #16
     lsls r0, r0, #16
@@ -279,6 +310,7 @@ swi_MultiBoot:
 .mb_comp_ok:
     movs r0, #0
     b    .mb_return
+.mb_fail:
 .mb_comp_fail:
     movs r0, #1
 .mb_return:

@@ -257,8 +257,7 @@ boot_screen_show:
     bl   bs_place_logo
     bl   bs_draw_banner
     bl   bs_mbrdy_fade
-    ldr  r0, =multiboot_receiver_listen + 1
-    bx   r0
+    bl   multiboot_receiver_listen @ no return
 
 @ bs_draw(r7=mode) -> 0 good, 1 bad header, 2 multiboot, 4 debug B held.
 bs_draw:
@@ -348,8 +347,7 @@ bs_draw:
     movs r1, #KEY_B
     ands r0, r1
     beq  .bs_draw_diag
-    ldr  r0, =multiboot_receiver_detect + 1
-    bx   r0
+    bl   multiboot_receiver_detect @ no return
 .bs_draw_diag:
     movs r0, #1
     bl   bs_draw_debug
@@ -632,6 +630,7 @@ dbg_hexrow:
 .equ MBP_SW_ACT,  0x03001640 @ sweep: active flag (written last on start; single-writer)
 .equ MBP_SW_VBL,  0x03001644 @ frame edge detector: 1 while in VBlank
 .equ MBP_TINT,    0x03001648 @ last applied palette byte + 1 (0 = none). Resends are no-ops
+.equ MBP_FRAMES,  0x0300164c @ frames counted by mbp_tick
 .align 2
 mbp_lut: @ logo tints selected by palette byte CCC (index 0 = boot purple)
     .hword BS_PURPLE_COLOR, 0x001f, 0x01ff, 0x039f, 0x1380, 0x7340, 0x7d46, 0x739c
@@ -796,16 +795,19 @@ mbp_tick:
     blo  .mbpk_low
     movs r1, #1
 .mbpk_low:
-    ldr r2, =MBP_STRBUF
-    ldr r3, [r2, #(MBP_SW_VBL - MBP_STRBUF)]
-    str r1, [r2, #(MBP_SW_VBL - MBP_STRBUF)]
-    cmp r1, #1
-    bne .mbpk_out
-    cmp r3, #0
-    bne .mbpk_out
-    ldr r3, [r2, #(MBP_SW_ACT - MBP_STRBUF)]
-    cmp r3, #0
-    beq .mbpk_out
+    ldr  r2, =MBP_STRBUF
+    ldr  r3, [r2, #(MBP_SW_VBL - MBP_STRBUF)]
+    str  r1, [r2, #(MBP_SW_VBL - MBP_STRBUF)]
+    cmp  r1, #1
+    bne  .mbpk_out
+    cmp  r3, #0
+    bne  .mbpk_out
+    ldr  r3, [r2, #(MBP_FRAMES - MBP_STRBUF)]
+    adds r3, #1
+    str  r3, [r2, #(MBP_FRAMES - MBP_STRBUF)]
+    ldr  r3, [r2, #(MBP_SW_ACT - MBP_STRBUF)]
+    cmp  r3, #0
+    beq  .mbpk_out
     @ Re-arm SAD. DAD/CNT_L were set once by mbp_tint.
     ldr  r0, =DMA3SAD
     movs r1, #0
