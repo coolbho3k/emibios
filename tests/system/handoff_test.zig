@@ -150,7 +150,7 @@ fn listensForMultiboot(rom: []const u8, buttons: u16) !bool {
 const NO_KEYS: u16 = 0x3ff;
 const B_HELD: u16 = 0x3ff & ~@as(u16, 0x2);
 
-test "a cart with a bad header listens for multiboot unless B is held" {
+test "a cart with a bad header does not listen for multiboot" {
     if (!std.mem.eql(u8, opts.emu, "gbahawk")) return error.SkipZigTest;
     const alloc = std.testing.allocator;
     const romf = try iface.readFile(alloc, opts.handoff_rom);
@@ -158,12 +158,11 @@ test "a cart with a bad header listens for multiboot unless B is held" {
     const rom = try alloc.dupe(u8, romf);
     defer alloc.free(rom);
 
-    try std.testing.expect(!try listensForMultiboot(rom, NO_KEYS));
     rom[0x10] ^= 0xff; // bad logo, first word still a branch
-    try std.testing.expect(try listensForMultiboot(rom, NO_KEYS));
+    try std.testing.expect(!try listensForMultiboot(rom, NO_KEYS));
     try std.testing.expect(!try listensForMultiboot(rom, B_HELD));
     rom[0x10] ^= 0xff;
     rom[0xbd] ^= 0x01; // bad header checksum
-    try std.testing.expect(try listensForMultiboot(rom, NO_KEYS));
+    try std.testing.expect(!try listensForMultiboot(rom, NO_KEYS));
     try std.testing.expect(!try listensForMultiboot(rom, B_HELD));
 }
