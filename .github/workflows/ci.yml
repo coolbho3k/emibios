@@ -28,13 +28,13 @@ jobs:
           persist-credentials: false
       - uses: mlugg/setup-zig@d1434d08867e3ee9daa34448df10607b98908d29 # v2.2.1
         with:
-          version: 0.16.0
+          version: 0.17.0
           use-cache: false
       - run: zig version
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/zig/p
-          key: zig-deps-${{ runner.os }}-${{ runner.arch }}-0.16.0-${{ hashFiles('build.zig.zon') }}
+          key: zig-deps-${{ runner.os }}-${{ runner.arch }}-0.17.0-${{ hashFiles('build.zig.zon') }}
       - run: zig fmt --check build.zig build.zig.zon tools rom tests
       - run: zig build lint
       - if: always()
@@ -50,13 +50,13 @@ jobs:
           persist-credentials: false
       - uses: mlugg/setup-zig@d1434d08867e3ee9daa34448df10607b98908d29 # v2.2.1
         with:
-          version: 0.16.0
+          version: 0.17.0
           use-cache: false
       - run: zig version
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/zig/p
-          key: zig-deps-${{ runner.os }}-${{ runner.arch }}-0.16.0-${{ hashFiles('build.zig.zon') }}
+          key: zig-deps-${{ runner.os }}-${{ runner.arch }}-0.17.0-${{ hashFiles('build.zig.zon') }}
       - run: zig build verify -Dno-recal=true -Dno-header-check=true
       - run: zig build verify -Dno-recal=true
       - run: zig build rom -Dno-recal=true
@@ -92,13 +92,13 @@ jobs:
           persist-credentials: false
       - uses: mlugg/setup-zig@d1434d08867e3ee9daa34448df10607b98908d29 # v2.2.1
         with:
-          version: 0.16.0
+          version: 0.17.0
           use-cache: false
       - run: zig version
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/zig/p
-          key: zig-deps-${{ runner.os }}-${{ runner.arch }}-0.16.0-${{ hashFiles('build.zig.zon') }}
+          key: zig-deps-${{ runner.os }}-${{ runner.arch }}-0.17.0-${{ hashFiles('build.zig.zon') }}
       - run: zig build verify -Dno-recal=true
       - run: zig build test -Dno-recal=true -Demu=${{ matrix.emu }} --test-timeout 1800s --summary all
       - if: always()

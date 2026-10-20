@@ -197,7 +197,7 @@ fn sortTests() void {
         var j: isize = @as(isize, @intCast(i)) - 1;
         while (j >= 0) : (j -= 1) {
             const t = st.tests[@intCast(j)];
-            const after = @intFromEnum(t.typ) > @intFromEnum(key.typ) or
+            const after = @backingInt(t.typ) > @backingInt(key.typ) or
                 (t.typ == key.typ and nameLess(key.name, t.name));
             if (!after) break;
             st.tests[@intCast(j + 1)] = t;
@@ -211,7 +211,7 @@ fn buildMenu() void {
     var last: i32 = -1;
     var t: u32 = 0;
     while (t < st.n_tests) : (t += 1) {
-        const ty = @intFromEnum(st.tests[t].typ);
+        const ty = @backingInt(st.tests[t].typ);
         if (@as(i32, ty) != last) {
             st.items[st.n_items] = .{ .header = true, .idx = @intCast(ty) };
             st.n_items += 1;

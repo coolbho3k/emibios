@@ -86,7 +86,7 @@ fn strides(t: anytype, a: std.mem.Allocator) !void {
     var s2 = src(0x100, 0x80, 0x30);
     var s8 = src(0x100, 0x80, 0x30);
     var d2: [8]u8 = undefined;
-    var d8 = [_]u8{0} ** 32;
+    var d8: [32]u8 = @splat(0);
     var cmds = [_]gba.MemCmd{
         .{ .src = &s2, .dest = &d2, .r2 = 1, .r3 = 2 },
         .{ .src = &s8, .dest = &d8, .r2 = 1, .r3 = 8 },

@@ -59,7 +59,7 @@ fn assignCodes(node: *Node, bits: u32, n: u32, codes: *[16]Code) void {
 }
 
 fn nibbleFreq(data: []const u8, order: *std.ArrayList(u8), gpa: std.mem.Allocator, freq: *[16]u64) !void {
-    var seen = [_]bool{false} ** 16;
+    var seen: [16]bool = @splat(false);
     for (data) |b| {
         for ([_]u8{ b & 0xF, (b >> 4) & 0xF }) |nib| {
             if (!seen[nib]) {
@@ -110,14 +110,14 @@ fn serializeTree(a: std.mem.Allocator, root: *Node) !Tree {
 pub fn encode(gpa: std.mem.Allocator, data: []const u8) ![]u8 {
     var order: std.ArrayList(u8) = .empty;
     defer order.deinit(gpa);
-    var freq = [_]u64{0} ** 16;
+    var freq: [16]u64 = @splat(0);
     try nibbleFreq(data, &order, gpa, &freq);
 
     var arena_state = std.heap.ArenaAllocator.init(gpa);
     defer arena_state.deinit();
     const a = arena_state.allocator();
     const root = try buildTree(a, order.items, freq);
-    var codes = [_]Code{.{ .bits = 0, .n = 1 }} ** 16;
+    var codes: [16]Code = @splat(.{ .bits = 0, .n = 1 });
     assignCodes(root, 0, 0, &codes);
     const tree = try serializeTree(a, root);
 
@@ -159,15 +159,15 @@ pub fn encode(gpa: std.mem.Allocator, data: []const u8) ![]u8 {
 pub fn codelens(gpa: std.mem.Allocator, stream: []const u8) ![16]i32 {
     var order: std.ArrayList(u8) = .empty;
     defer order.deinit(gpa);
-    var freq = [_]u64{0} ** 16;
+    var freq: [16]u64 = @splat(0);
     try nibbleFreq(stream, &order, gpa, &freq);
     var arena_state = std.heap.ArenaAllocator.init(gpa);
     defer arena_state.deinit();
     const a = arena_state.allocator();
     const root = try buildTree(a, order.items, freq);
-    var codes = [_]Code{.{ .bits = 0, .n = 1 }} ** 16;
+    var codes: [16]Code = @splat(.{ .bits = 0, .n = 1 });
     assignCodes(root, 0, 0, &codes);
-    var out = [_]i32{-1} ** 16;
+    var out: [16]i32 = @splat(-1);
     for (order.items) |s| out[s] = codes[s].n;
     return out;
 }

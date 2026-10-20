@@ -25,8 +25,8 @@ fn ctLz77(comptime data: []const u8, comptime min_disp: usize) []const u8 {
     };
     return &arr;
 }
-const comp_wram = ctLz77(&[_]u8{0x5A} ** 256, 1);
-const comp_vram = ctLz77(&[_]u8{0x5A} ** 256, 2);
+const comp_wram = ctLz77(&@as([256]u8, @splat(0x5A)), 1);
+const comp_vram = ctLz77(&@as([256]u8, @splat(0x5A)), 2);
 
 // Comptime mixed literal/repeat content; the trailing case in each sweep is odd (wram) / even (vram) size.
 fn mixed(comptime n: usize) [n]u8 {
@@ -36,13 +36,13 @@ fn mixed(comptime n: usize) [n]u8 {
 }
 
 fn roundWram(t: anytype, a: std.mem.Allocator) !void {
-    const cases = .{ "A", "Hi", "abc", "Hello, GBA BIOS -- decompress me!", "ABABABABABABABABABAB", &([_]u8{0x5A} ** 100), &mixed(777) };
+    const cases = .{ "A", "Hi", "abc", "Hello, GBA BIOS -- decompress me!", "ABABABABABABABABABAB", &@as([100]u8, @splat(0x5A)), &mixed(777) };
     inline for (cases, 0..) |d, i|
         try h.roundtrip(t, a, "wram", i, wram, try codec.lz77(a, d, 1), d);
 }
 
 fn roundVram(t: anytype, a: std.mem.Allocator) !void {
-    const cases = .{ "Hi", "GBA!", "ABABABABABABABABABAB", &([_]u8{0x5A} ** 100), &mixed(778) };
+    const cases = .{ "Hi", "GBA!", "ABABABABABABABABABAB", &@as([100]u8, @splat(0x5A)), &mixed(778) };
     inline for (cases, 0..) |d, i|
         try h.roundtrip(t, a, "vram", i, vram, try codec.lz77(a, d, 2), d);
 }
@@ -59,11 +59,11 @@ fn guard(t: anytype, a: std.mem.Allocator) !void {
 
 fn malformed(t: anytype, a: std.mem.Allocator) !void {
     const size0 = [_]u8{ 0x10, 0, 0, 0 };
-    var d0 = [_]u8{0xAB} ** 8;
+    var d0: [8]u8 = @splat(0xAB);
     a.free(try wram.runMem(a, &.{.{ .src = &size0, .dest = &d0 }}));
     try t.checkEqual("size0 nowrite", @as(u32, 0), countNonZero(&d0));
     const trunc = [_]u8{ 0x10, 6, 0, 0, 0x40, 0x41, 0xF0, 0x00 };
-    var dt = [_]u8{0xAB} ** 10;
+    var dt: [10]u8 = @splat(0xAB);
     a.free(try wram.runMem(a, &.{.{ .src = &trunc, .dest = &dt }}));
     try t.checkBytes("final match overshoot", "AAAAAAAAAA", &dt);
 }

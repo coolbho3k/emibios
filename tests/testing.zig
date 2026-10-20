@@ -56,7 +56,7 @@ fn note(name: []const u8, exp: u32, meas: u32, passed: bool, comptime fmt: []con
 fn scalar(v: anytype) u32 {
     return switch (@typeInfo(@TypeOf(v))) {
         .bool => @intFromBool(v),
-        .@"enum" => @intFromEnum(v),
+        .@"enum" => @backingInt(v),
         .int, .comptime_int => @bitCast(@as(i32, @truncate(@as(i64, v)))),
         else => 0,
     };

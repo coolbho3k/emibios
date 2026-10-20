@@ -11,7 +11,7 @@ pub const swi = gba.Swi{ .bios_path = opts.bios_path, .target = opts.cpu_fast_se
 
 const FILL: u32 = 1 << 24; // fixed source: repeat one word
 
-const timing_src = [_]u32{0x5A5A5A5A} ** 128; // const -> cart ROM for the pinned cycle counts
+const timing_src: [128]u32 = @splat(0x5A5A5A5A); // const -> cart ROM for the pinned cycle counts
 
 fn countNot(slice: []const u32, val: u32) u32 {
     var n: u32 = 0;
@@ -24,10 +24,10 @@ fn countNot(slice: []const u32, val: u32) u32 {
 fn copy(t: anytype, a: std.mem.Allocator) !void {
     var src: [64]u32 = undefined;
     for (&src, 0..) |*w, i| w.* = @as(u32, @intCast(i)) *% 0x01010101 +% 0xF00D;
-    var copy_dst = [_]u32{0} ** src.len;
-    var copy8 = [_]u32{0} ** 8; // the minimum block
+    var copy_dst: [src.len]u32 = @splat(0);
+    var copy8: [8]u32 = @splat(0); // the minimum block
     const fill = [_]u32{0x12345678};
-    var fill_dst = [_]u32{0} ** 24;
+    var fill_dst: [24]u32 = @splat(0);
     const cmds = [_]gba.MemCmd{
         .{ .src = bytes(&src), .dest = bytes(&copy_dst), .r2 = src.len }, // copy 64 words
         .{ .src = bytes(&src), .dest = bytes(&copy8), .r2 = 8 }, // copy one 8-word block
@@ -43,8 +43,8 @@ fn copy(t: anytype, a: std.mem.Allocator) !void {
 fn round(t: anytype, a: std.mem.Allocator) !void {
     var src: [16]u32 = undefined;
     for (&src, 0..) |*w, i| w.* = 0xA0000000 | @as(u32, @intCast(i));
-    var d5 = [_]u32{0} ** 16;
-    var d12 = [_]u32{0} ** 16;
+    var d5: [16]u32 = @splat(0);
+    var d12: [16]u32 = @splat(0);
     const cmds = [_]gba.MemCmd{
         .{ .src = bytes(&src), .dest = bytes(&d5), .r2 = 5 }, // 5 rounds up to 8
         .{ .src = bytes(&src), .dest = bytes(&d12), .r2 = 12 }, // 12 rounds up to 16
@@ -56,9 +56,9 @@ fn round(t: anytype, a: std.mem.Allocator) !void {
 }
 
 fn cycles(t: anytype, a: std.mem.Allocator) !void {
-    var dz = [_]u32{0} ** 1;
-    var d0 = [_]u32{0} ** 128;
-    var d1 = [_]u32{0} ** 128;
+    var dz: [1]u32 = @splat(0);
+    var d0: [128]u32 = @splat(0);
+    var d1: [128]u32 = @splat(0);
     const want = [_]u32{ 116, 1805, 990 };
     const cmds = [_]gba.MemCmd{
         .{ .src = bytes(timing_src[0..1]), .dest = bytes(&dz), .r2 = 0 },
@@ -71,7 +71,7 @@ fn cycles(t: anytype, a: std.mem.Allocator) !void {
 }
 
 fn guard(t: anytype, a: std.mem.Allocator) !void {
-    var dest = [_]u8{0} ** 64;
+    var dest: [64]u8 = @splat(0);
     const cyc = try swi.runMem(a, &.{.{ .src = bytes(&timing_src), .dest = &dest, .r2 = 16, .src_addr = 0x01000000 }});
     defer a.free(cyc);
     try t.checkEqual("guard nowrite", @as(u32, 0), @as(u32, blk: {
@@ -87,8 +87,8 @@ fn guard(t: anytype, a: std.mem.Allocator) !void {
 fn degenerate(t: anytype, a: std.mem.Allocator) !void {
     var src: [16]u32 = undefined;
     for (&src, 0..) |*w, i| w.* = 0xB0000000 | @as(u32, @intCast(i));
-    var d0 = [_]u32{0xABCD} ** 8;
-    var dmask = [_]u32{0xABCD} ** 16;
+    var d0: [8]u32 = @splat(0xABCD);
+    var dmask: [16]u32 = @splat(0xABCD);
     const cmds = [_]gba.MemCmd{
         .{ .src = bytes(&src), .dest = bytes(&d0), .r2 = 0 },
         .{ .src = bytes(&src), .dest = bytes(&dmask), .r2 = 8 | (1 << 21) },

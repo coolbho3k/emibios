@@ -23,7 +23,7 @@ fn buildMatchTable(gpa: std.mem.Allocator, data: []const u8) ![]std.ArrayList(M)
     const tab = try gpa.alloc(std.ArrayList(M), n);
     for (tab) |*t| t.* = .empty;
     for (0..n) |i| {
-        var have = [_]bool{false} ** (MAXM + 1);
+        var have: [MAXM + 1]bool = @splat(false);
         var need: usize = MAXM - MINM + 1;
         const lo = if (i > WIN) i - WIN else 0;
         var s: usize = i;
@@ -194,7 +194,7 @@ fn zopfli(gpa: std.mem.Allocator, data: []const u8, tab: []std.ArrayList(M), ite
     var best_lz = g;
     var best = try blobLen(gpa, hdr, g);
 
-    var cl = [_]i32{4} ** 16;
+    var cl: [16]i32 = @splat(4);
     var flag_amort: f64 = 1.0;
     var prev: ?[]u8 = null;
     var it: usize = 0;

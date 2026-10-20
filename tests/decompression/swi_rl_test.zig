@@ -23,7 +23,7 @@ fn ctRl(comptime data: []const u8) []const u8 {
     };
     return &arr;
 }
-const comp_timing = ctRl(&[_]u8{0x7E} ** 256); // same stream drives both WRAM and VRAM timing
+const comp_timing = ctRl(&@as([256]u8, @splat(0x7E))); // same stream drives both WRAM and VRAM timing
 
 // Comptime runs of varying length; the trailing case in each sweep is odd (wram) / even (vram) size.
 fn runs(comptime n: usize) [n]u8 {
@@ -33,13 +33,13 @@ fn runs(comptime n: usize) [n]u8 {
 }
 
 fn roundWram(t: anytype, a: std.mem.Allocator) !void {
-    const cases = .{ "A", "Hi", "AAA", "AAAAAAAABBBBBCCDEFGGGGGG", &([_]u8{0xFF} ** 200), &runs(533) };
+    const cases = .{ "A", "Hi", "AAA", "AAAAAAAABBBBBCCDEFGGGGGG", &@as([200]u8, @splat(0xFF)), &runs(533) };
     inline for (cases, 0..) |d, i|
         try h.roundtrip(t, a, "wram", i, wram, try codec.rl(a, d), d);
 }
 
 fn roundVram(t: anytype, a: std.mem.Allocator) !void {
-    const cases = .{ "Hi", "AAAAAAAA", "AAAAAAAABBBBBBBBCCCCDDDD", &([_]u8{0xFF} ** 200), &runs(534) };
+    const cases = .{ "Hi", "AAAAAAAA", "AAAAAAAABBBBBBBBCCCCDDDD", &@as([200]u8, @splat(0xFF)), &runs(534) };
     inline for (cases, 0..) |d, i|
         try h.roundtrip(t, a, "vram", i, vram, try codec.rl(a, d), d);
 }
@@ -56,7 +56,7 @@ fn guard(t: anytype, a: std.mem.Allocator) !void {
 
 fn malformed(t: anytype, a: std.mem.Allocator) !void {
     const size0 = [_]u8{ 0x30, 0, 0, 0 };
-    var d0 = [_]u8{0xAB} ** 8;
+    var d0: [8]u8 = @splat(0xAB);
     a.free(try wram.runMem(a, &.{.{ .src = &size0, .dest = &d0 }}));
     var n0: u32 = 0;
     for (d0) |b| {
@@ -64,7 +64,7 @@ fn malformed(t: anytype, a: std.mem.Allocator) !void {
     }
     try t.checkEqual("size0 nowrite", @as(u32, 0), n0);
     const over = [_]u8{ 0x30, 4, 0, 0, 0x85, 0x42, 0, 0 };
-    var dt = [_]u8{0xAB} ** 8;
+    var dt: [8]u8 = @splat(0xAB);
     a.free(try wram.runMem(a, &.{.{ .src = &over, .dest = &dt }}));
     try t.checkBytes("final run overshoot", "BBBBBBBB", &dt);
 }

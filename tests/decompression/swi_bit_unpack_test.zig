@@ -104,8 +104,8 @@ fn pinned(t: anytype, a: std.mem.Allocator) !void {
 fn guard(t: anytype, a: std.mem.Allocator) !void {
     // BIOS-region source: the guard fires (dest untouched) on a calibrated skip-path cycle count. The info
     // is a ROM const so the guard's src_len read matches the harness region (a stack local sits in IWRAM).
-    var dest = [_]u8{0} ** 64;
-    const cyc = try swi.runMem(a, &.{.{ .src = &[_]u8{0xAA} ** 8, .dest = &dest, .src_addr = 0x01000000, .r2_ptr = &guard_info }});
+    var dest: [64]u8 = @splat(0);
+    const cyc = try swi.runMem(a, &.{.{ .src = &@as([8]u8, @splat(0xAA)), .dest = &dest, .src_addr = 0x01000000, .r2_ptr = &guard_info }});
     defer a.free(cyc);
     var touched: u32 = 0;
     for (dest) |b| {
@@ -116,8 +116,8 @@ fn guard(t: anytype, a: std.mem.Allocator) !void {
 }
 
 fn degenerate(t: anytype, a: std.mem.Allocator) !void {
-    const src = [_]u8{0xFF} ** 4;
-    var d0 = [_]u8{0xAB} ** 8;
+    const src: [4]u8 = @splat(0xFF);
+    var d0: [8]u8 = @splat(0xAB);
     const cyc = try swi.runMem(a, &.{.{ .src = &src, .dest = &d0, .r2_ptr = &info_len0 }});
     defer a.free(cyc);
     var n: u32 = 0;

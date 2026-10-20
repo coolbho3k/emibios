@@ -76,8 +76,8 @@ fn guard(t: anytype, a: std.mem.Allocator) !void {
 fn malformed(t: anytype, a: std.mem.Allocator) !void {
     const s8 = [_]u8{ 0x81, 0, 0, 0 };
     const s16 = [_]u8{ 0x82, 0, 0, 0 };
-    var d8 = [_]u8{0xAB} ** 8;
-    var d16 = [_]u8{0xAB} ** 8;
+    var d8: [8]u8 = @splat(0xAB);
+    var d16: [8]u8 = @splat(0xAB);
     a.free(try diff8.runMem(a, &.{.{ .src = &s8, .dest = &d8 }}));
     a.free(try diff16.runMem(a, &.{.{ .src = &s16, .dest = &d16 }}));
     var n: u32 = 0;

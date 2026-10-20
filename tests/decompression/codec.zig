@@ -122,7 +122,7 @@ fn hCodes(nodes: []const HNode, node: u16, bits: u32, len: u5, code: *[256]u32, 
 /// Type-2 Huffman fixture stream with 8-bit symbols.
 /// `data.len` must be a multiple of 4 and use an alphabet small enough for 6-bit child offsets.
 pub fn huffman(a: std.mem.Allocator, data: []const u8) ![]u8 {
-    var present = [_]bool{false} ** 256;
+    var present: [256]bool = @splat(false);
     for (data) |b| present[b] = true;
     var syms: std.ArrayListUnmanaged(u8) = .empty;
     defer syms.deinit(a);
@@ -168,8 +168,8 @@ pub fn huffman(a: std.mem.Allocator, data: []const u8) ![]u8 {
     // Pad the node table itself so the tree-size byte remains exact.
     while ((5 + table.items.len) % 4 != 0) try table.append(a, 0);
 
-    var code = [_]u32{0} ** 256;
-    var clen = [_]u5{0} ** 256;
+    var code: [256]u32 = @splat(0);
+    var clen: [256]u5 = @splat(0);
     hCodes(nodes.items, root, 0, 0, &code, &clen);
 
     var out: List = .empty;
@@ -199,7 +199,7 @@ pub fn huffman(a: std.mem.Allocator, data: []const u8) ![]u8 {
         std.mem.writeInt(u32, &w, acc << @intCast(32 - nbits), .little);
         try out.appendSlice(a, &w);
     }
-    try out.appendSlice(a, &[_]u8{0} ** 8); // The decoder may consume padding bits before the length check.
+    try out.appendSlice(a, &@as([8]u8, @splat(0))); // The decoder may consume padding bits before the length check.
     return out.toOwnedSlice(a);
 }
 

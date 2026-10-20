@@ -17,7 +17,7 @@ const refs = [_]RefCase{
 };
 
 fn waveData(freq: u32) [8]u8 {
-    var b = [_]u8{0} ** 8;
+    var b: [8]u8 = @splat(0);
     std.mem.writeInt(u32, b[4..8], freq, .little); // WaveData->freq at offset 4 (the only field read)
     return b;
 }

@@ -186,18 +186,18 @@ pub const GOLDEN_CYC = [OPS.len][N * N]u32{
 };
 // 8-bit-write codecs: stores land in EW/IW (sum 1064), byte-duplicate in PR (sum 1072), and are
 // dropped in VR/OA.
-const W0 = [_]u32{ 1064, 1064, 1072, 0, 0 } ** N;
+const W0: [N * N]u32 = @bitCast(@as([N][N]u32, @splat(.{ 1064, 1064, 1072, 0, 0 })));
 pub const GOLDEN_SUM = [OPS.len][N * N]u32{
-    .{2693} ** (N * N), // CpuSet32 copy: dst == FIX, sum(FIX) = 2693
-    .{2693} ** (N * N), // CpuSet16 copy
-    .{2693} ** (N * N), // CpuFastSet copy
+    @splat(2693), // CpuSet32 copy: dst == FIX, sum(FIX) = 2693
+    @splat(2693), // CpuSet16 copy
+    @splat(2693), // CpuFastSet copy
     W0, // LZ77w decomp
-    .{1064} ** (N * N), // LZ77v decomp
+    @splat(1064), // LZ77v decomp
     W0, // RLw decomp
-    .{1064} ** (N * N), // RLv decomp
-    .{1064} ** (N * N), // Huff decomp
+    @splat(1064), // RLv decomp
+    @splat(1064), // Huff decomp
     W0, // Diff8w unfilt
-    .{1064} ** (N * N), // Diff8v unfilt
-    .{1832} ** (N * N), // Diff16 unfilt
-    .{17} ** (N * N), // BitUnPack
+    @splat(1064), // Diff8v unfilt
+    @splat(1832), // Diff16 unfilt
+    @splat(17), // BitUnPack
 };

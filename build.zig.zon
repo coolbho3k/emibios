@@ -2,11 +2,11 @@
     .name = .emibios,
     .version = "0.1.1",
     .fingerprint = 0x99ea2d4d8626f1b1,
-    .minimum_zig_version = "0.16.0",
+    .minimum_zig_version = "0.17.0",
     .dependencies = .{
         .zigimg = .{
-            .url = "git+https://github.com/zigimg/zigimg#096115a3eeae1a4c477496d575f1f1f74865387c",
-            .hash = "zigimg-0.1.0-8_eo2mHBFwDLhWjXriR17_b7VF6qML1f98Xokp7ZZbop",
+            .url = "git+https://github.com/zigimg/zigimg#c8ab20d57487768ee121d4d05e69b10968f10115",
+            .hash = "zigimg-0.1.0-8_eo2j5lGAD6CsSJLnfXJikIjFDPG7V8blUGOPDiEZ4-",
         },
         .gbahawk = .{
             .url = "https://github.com/alyosha-tas/GBAHawk/archive/b3ed4943b350eae620475fd1c65f6fe577dcd20e.tar.gz",

@@ -45,7 +45,7 @@ pub fn timing(t: anytype, a: std.mem.Allocator, name: []const u8, comptime swi: 
 // Source in the BIOS region: the SWI must skip, leaving the destination untouched, at a fixed skip cost.
 pub fn guard(t: anytype, a: std.mem.Allocator, comptime tag: []const u8, comptime swi: gba.Swi, comp: []const u8, want: u32) !void {
     defer a.free(comp);
-    var dest = [_]u8{0} ** 64;
+    var dest: [64]u8 = @splat(0);
     const cyc = try swi.runMem(a, &.{.{ .src = comp, .dest = &dest, .src_addr = 0x01000000 }});
     defer a.free(cyc);
     try t.checkEqual(label(tag, "guard nowrite"), @as(u32, 0), countNonZero(&dest));

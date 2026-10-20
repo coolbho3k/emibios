@@ -48,7 +48,7 @@ fn guard(t: anytype, a: std.mem.Allocator) !void {
 
 fn malformed(t: anytype, a: std.mem.Allocator) !void {
     const size0 = [_]u8{ 0x28, 0, 0, 0, 0, 0, 0, 0 };
-    var d0 = [_]u8{0xAB} ** 8;
+    var d0: [8]u8 = @splat(0xAB);
     a.free(try swi.runMem(a, &.{.{ .src = &size0, .dest = &d0 }}));
     var n0: u32 = 0;
     for (d0) |b| {

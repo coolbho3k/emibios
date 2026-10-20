@@ -35,7 +35,7 @@ way to do this on any retail hardware).
 
 ### Building
 
-[Zig](https://ziglang.org) 0.16 is the toolchain and the only build prerequisite needed.
+[Zig](https://ziglang.org) 0.17 is the toolchain and the only build prerequisite needed.
 
     zig build         # builds zig-out/bin/gba_bios.bin
 

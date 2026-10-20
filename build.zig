@@ -24,7 +24,7 @@ pub fn build(b: *std.Build) void {
         .target = b.graph.host,
         .optimize = .ReleaseSafe,
     }) });
-    const sine_dir = b.addRunArtifact(sine_exe).addOutputDirectoryArg("gen"); // writes gen/sine_lut.s
+    const sine_dir = b.addRunArtifact(sine_exe).addOutputDirectoryArg2("gen", .{}); // writes gen/sine_lut.s
 
     const boot_exe = b.addExecutable(.{ .name = "gen_boot_screen", .root_module = b.createModule(.{
         .root_source_file = b.path("tools/boot_screen/gen_boot_screen.zig"),
@@ -36,7 +36,7 @@ pub fn build(b: *std.Build) void {
     boot_run.setCwd(b.path("."));
     boot_run.addFileInput(b.path("assets/emibios_logo_2bpp.png"));
     boot_run.addFileInput(b.path("assets/gbstudio_default_ascii.png"));
-    const boot_dir = boot_run.addOutputDirectoryArg("gen"); // writes gen/boot_screen_data.s
+    const boot_dir = boot_run.addOutputDirectoryArg2("gen", .{}); // writes gen/boot_screen_data.s
 
     // Test ROM font atlas
     const font_exe = b.addExecutable(.{ .name = "gen_font_atlas", .root_module = b.createModule(.{
@@ -48,7 +48,7 @@ pub fn build(b: *std.Build) void {
     const font_run = b.addRunArtifact(font_exe);
     font_run.setCwd(b.path(".")); // reads the source PNG by project-relative path
     font_run.addFileInput(b.path("assets/gbstudio_default_ascii.png"));
-    const font_bin = font_run.addOutputDirectoryArg("gen").path(b, "font.bin");
+    const font_bin = font_run.addOutputDirectoryArg2("gen", .{}).path(b, "font.bin");
 
     // Assemble preprocessed
     const asm_cmd = b.addSystemCommand(&.{ zig, "cc", "-c", "-x", "assembler-with-cpp" });
@@ -59,15 +59,15 @@ pub fn build(b: *std.Build) void {
     asm_cmd.addArg("-I");
     asm_cmd.addArg("src");
     asm_cmd.addArg("-I");
-    asm_cmd.addDirectoryArg(sine_dir);
+    asm_cmd.addDirectoryArg2(sine_dir, .{});
     asm_cmd.addArg("-I");
-    asm_cmd.addDirectoryArg(boot_dir);
+    asm_cmd.addDirectoryArg2(boot_dir, .{});
     if (layout_perturb != 0) asm_cmd.addArg(b.fmt("-Wa,--defsym,LAYOUT_PERTURB={d}", .{layout_perturb}));
     if (no_header_check) asm_cmd.addArg("-Wa,--defsym,NO_HEADER_CHECK=1");
     asm_cmd.addArg("-MD"); // emit a depfile alongside the object...
-    _ = asm_cmd.addPrefixedDepFileOutputArg("-MF", "entrypoint.o.d"); // ...which the Run step parses for inputs
+    _ = asm_cmd.addDepFileOutputArg2("entrypoint.o.d", .{ .prefix = "-MF" }); // ...which the Run step parses for inputs
     asm_cmd.addArg("-o");
-    const obj = asm_cmd.addOutputFileArg("entrypoint.o");
+    const obj = asm_cmd.addOutputFileArg2("entrypoint.o", .{});
 
     // The linker script fixes the BIOS layout and objcopy extracts the visible 16 KiB image.
     const bios = linkBin(b, zig, b.path("src/link.ld"), obj, "bios");
@@ -219,10 +219,10 @@ pub fn build(b: *std.Build) void {
         rc.setCwd(b.path("."));
         rc.addArg("deep");
         rc.addArg(zig);
-        rc.addArtifactArg(probe);
+        rc.addArtifactArg2(probe, .{});
         rc.addFileArg(rom_gba);
         rc.addArg(b.fmt("{d}", .{handoff_target}));
-        rc.addArtifactArg(addProbe(b, "probe_mgba", mg, iface_mod));
+        rc.addArtifactArg2(addProbe(b, "probe_mgba", mg, iface_mod), .{});
         rc.addArg(b.fmt("{d}", .{mgba_handoff_target}));
         if (no_header_check) rc.addArg("-Dno-header-check=true");
         recal.dependOn(&rc.step);
@@ -326,11 +326,11 @@ pub fn build(b: *std.Build) void {
     lint_run.setCwd(b.path("."));
     if (lint_fix) lint_run.addArg("--fix");
     if (lint_strict) lint_run.addArg("--strict");
-    if (b.args) |a| lint_run.addArgs(a); // file paths to lint
+    lint_run.addPassthruArgs(); // file paths to lint
     lint.dependOn(&lint_run.step);
 
     const fmt = b.step("fmt", "Format build.zig and the tools with zig fmt");
-    fmt.dependOn(&b.addFmt(.{ .paths = &.{ "build.zig", "tools" } }).step);
+    fmt.dependOn(&b.addFmt(.{ .paths = b.pathList(&.{ "build.zig", "tools" }) }).step);
 }
 
 // We must support multiple emulator backends so we can cross check for accuracy. Today, that is GBAHawk, MesenCE and mGBA.
@@ -441,8 +441,7 @@ fn buildMesence(b: *std.Build, iface_mod: *std.Build.Module, lib_step: *std.Buil
     // Configure time walk of the dep tree. Skips UI/SDL frontends.
     var cxx_files: std.ArrayList([]const u8) = .empty;
     var c_files: std.ArrayList([]const u8) = .empty;
-    const root_path = dep.builder.build_root.path orelse @panic("mesence: dependency has no build_root path");
-    var root_dir = std.Io.Dir.cwd().openDir(b.graph.io, root_path, .{ .iterate = true }) catch @panic("mesence: openDir failed");
+    var root_dir = dep.builder.root.openDir(b.graph.io, ".", .{ .iterate = true }) catch @panic("mesence: openDir failed");
     defer root_dir.close(b.graph.io);
     var walker = root_dir.walk(b.allocator) catch @panic("mesence: walk failed");
     defer walker.deinit();
@@ -487,10 +486,10 @@ fn linkBin(b: *std.Build, zig: []const u8, script: std.Build.LazyPath, obj: std.
     ld.addFileArg(script);
     ld.addFileArg(obj);
     ld.addArg("-o");
-    const elf = ld.addOutputFileArg(b.fmt("{s}.elf", .{name}));
+    const elf = ld.addOutputFileArg2(b.fmt("{s}.elf", .{name}), .{});
     const oc = b.addSystemCommand(&.{ zig, "objcopy", "-O", "binary" });
     oc.addFileArg(elf);
-    return .{ .elf = elf, .bin = oc.addOutputFileArg(b.fmt("{s}.bin", .{name})) };
+    return .{ .elf = elf, .bin = oc.addOutputFileArg2(b.fmt("{s}.bin", .{name}), .{}) };
 }
 
 // Timing harness for each SWI: rom/swi_harness.zig with the SWI number baked in.
@@ -514,7 +513,7 @@ fn buildGbaRom(b: *std.Build, zig: []const u8, name: []const u8, root: *std.Buil
     const target = pad_bytes orelse return bin;
     const pad = b.addSystemCommand(&.{ zig, "run", "tools/pad.zig", "--" });
     pad.addFileArg(bin);
-    const out = pad.addOutputFileArg(b.fmt("{s}.gba", .{name}));
+    const out = pad.addOutputFileArg2(b.fmt("{s}.gba", .{name}), .{});
     pad.addArg(b.fmt("{d}", .{target}));
     return out;
 }

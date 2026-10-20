@@ -2,7 +2,7 @@
 const logo = @embedFile("gba_logo.bin");
 
 pub fn gbaHeader(comptime title: []const u8, comptime code: []const u8) [0xC0]u8 {
-    var h = [_]u8{0} ** 0xC0;
+    var h: [0xC0]u8 = @splat(0);
     h[0] = 0x2E;
     h[3] = 0xEA;
     for (logo, 0..) |b, i| h[4 + i] = b;
