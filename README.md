@@ -1,5 +1,5 @@
 # emibios: a GBA BIOS replacement
-**Download latest: [gba_bios.bin | 0.1.6](https://github.com/coolbho3k/emibios/releases/download/0.1.6/gba_bios.bin)**
+**Download latest: [gba_bios.bin | 0.2.0](https://github.com/coolbho3k/emibios/releases/download/0.2.0/gba_bios.bin)**
 
 emibios is a research [Game Boy Advance](https://en.wikipedia.org/wiki/Game_Boy_Advance) BIOS replacement that aims to be as accurate as possible
 when running commercial games while being freely redistributable. It is not intended to contain,
@@ -49,11 +49,10 @@ Build a BIOS accuracy test ROM:
 
 ### Disclaimer
 
-This is a research project and should not be considered production-ready just yet. emibios is not
-perfect yet. Although I have tried to fix all crashes I've found so far, many games will still
-desync in TAS playback, and I can't test every game and homebrew out there from start to finish.
-However, the goal is to eventually get as close in observable functionality to the retail BIOS as
-possible. This means fixing any crashes that are found and aiming for determinism given the same
+emibios is not perfect yet. Although I have tried to fix all crashes I've found so far, many games
+will still desync in TAS playback, and I can't test every game and homebrew out there from start to
+finish. However, the goal is to eventually get as close in observable functionality to the retail BIOS
+as possible. This means fixing any crashes that are found and aiming for determinism given the same
 sequence of inputs in games as the retail BIOS.
 
 Please help me test commercial games, particularly those that use the sound SWIs and those that
