@@ -149,6 +149,7 @@ multiboot_receiver_listen:
     subs r3, #1
     bne  .det_jb
     movs r0, #0          @ Normal-32 dwell
+    strh r0, [r6, #0x08] @ stop the transfer armed before the JoyBus dwell
     strh r0, [r6, #0x14]
     str  r0, [r6, #0x00] @ idle reply 0 (what a pre-commit retail receiver presents)
     ldr  r0, =0x00005088
