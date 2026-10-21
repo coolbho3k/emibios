@@ -1,5 +1,6 @@
 # emibios: a GBA BIOS replacement
 **Download latest: [gba_bios.bin | 0.2.0](https://github.com/coolbho3k/emibios/releases/download/0.2.0/gba_bios.bin)**
+
 [![Build](https://github.com/coolbho3k/emibios/actions/workflows/ci.yml/badge.svg)](https://github.com/coolbho3k/emibios/actions/workflows/ci.yml)
 
 emibios is a research [Game Boy Advance](https://en.wikipedia.org/wiki/Game_Boy_Advance) BIOS replacement that aims to be as accurate as possible
