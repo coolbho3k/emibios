@@ -1,8 +1,32 @@
 name: CI
 on:
   pull_request:
+    paths:
+      - .github/workflows/ci.yml
+      - .gitattributes
+      - assets/**
+      - rom/**
+      - src/**
+      - tests/**
+      - tools/**
+      - build.zig
+      - build.zig.zon
+      - bios.sha256
+      - bios_no_header_check.sha256
   push:
     branches: [main]
+    paths:
+      - .github/workflows/ci.yml
+      - .gitattributes
+      - assets/**
+      - rom/**
+      - src/**
+      - tests/**
+      - tools/**
+      - build.zig
+      - build.zig.zon
+      - bios.sha256
+      - bios_no_header_check.sha256
   workflow_dispatch:
   workflow_call:
 
