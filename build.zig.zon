@@ -33,6 +33,7 @@
         "tests",
         "tools",
         "bios.sha256",
+        "bios_no_header_check.sha256",
         "README.md",
         "boot.webp",
         "multiboot.webp",

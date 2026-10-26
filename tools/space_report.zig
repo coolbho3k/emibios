@@ -97,12 +97,13 @@ fn parseSwiTable(gpa: std.mem.Allocator, src: []const u8) !std.ArrayList(Entry) 
 pub fn main(init: std.process.Init) !void {
     const gpa = init.arena.allocator();
     const io = init.io;
+    const args = try init.minimal.args.toSlice(gpa);
     var sfw: Io.File.Writer = .init(.stdout(), io, &.{});
     const w = &sfw.interface;
 
     const cwd = Io.Dir.cwd();
-    const elf = try cwd.readFileAlloc(io, "zig-out/bin/bios.elf", gpa, .limited(4 * 1024 * 1024));
-    const bin = try cwd.readFileAlloc(io, "zig-out/bin/gba_bios.bin", gpa, .limited(2 * CAP));
+    const elf = try cwd.readFileAlloc(io, if (args.len > 1) args[1] else "zig-out/bin/bios.elf", gpa, .limited(4 * 1024 * 1024));
+    const bin = try cwd.readFileAlloc(io, if (args.len > 2) args[2] else "zig-out/bin/gba_bios.bin", gpa, .limited(2 * CAP));
     const src = try cwd.readFileAlloc(io, "src/swi/swi_table.s", gpa, .limited(8 * 1024 * 1024));
 
     const syms = try parseElf(gpa, elf);

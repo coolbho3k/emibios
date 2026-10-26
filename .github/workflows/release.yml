@@ -95,7 +95,9 @@ jobs:
           set -euo pipefail
           cd release-artifacts/zig-out/bin
           sha256sum --check ../../bios.sha256
+          sha256sum --check ../../bios_no_header_check.sha256
           test "$(wc -c < gba_bios.bin)" -eq 16384
+          test "$(wc -c < gba_bios-no_header_check.bin)" -eq 16384
           test "$(wc -c < test_rom.gba)" -eq 1048576
           refs=$(gh api "repos/$GH_REPO/git/matching-refs/tags/$RELEASE_VERSION")
           test "$(jq --arg ref "refs/tags/$RELEASE_VERSION" '[.[] | select(.ref == $ref)] | length' <<< "$refs")" -eq 0
@@ -104,7 +106,7 @@ jobs:
           if [[ "$core_version" == *-* ]]; then prerelease=(--prerelease); fi
           gh api --method POST "repos/$GH_REPO/git/refs" \
             -f "ref=refs/tags/$RELEASE_VERSION" -f "sha=$SOURCE_SHA"
-          gh release create "$RELEASE_VERSION" gba_bios.bin test_rom.gba \
+          gh release create "$RELEASE_VERSION" gba_bios.bin gba_bios-no_header_check.bin test_rom.gba \
             --verify-tag --title "$RELEASE_VERSION" \
             --notes-file "$RUNNER_TEMP/release-notes.md" --draft "${prerelease[@]}"
           gh release edit "$RELEASE_VERSION" --draft=false

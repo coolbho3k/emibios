@@ -88,6 +88,7 @@ jobs:
       - name: Check binary sizes
         run: |
           test "$(wc -c < zig-out/bin/gba_bios.bin)" -eq 16384
+          test "$(wc -c < zig-out/bin/gba_bios-no_header_check.bin)" -eq 16384
           test "$(wc -c < zig-out/bin/test_rom.gba)" -eq 1048576
       - if: always()
         run: git diff --exit-code
@@ -96,20 +97,23 @@ jobs:
           name: emibios-${{ github.sha }}
           path: |
             zig-out/bin/gba_bios.bin
+            zig-out/bin/gba_bios-no_header_check.bin
             zig-out/bin/bios.elf
             zig-out/bin/test_rom.gba
             bios.sha256
+            bios_no_header_check.sha256
           if-no-files-found: error
           retention-days: 14
 
   test:
-    name: Test (${{ matrix.emu }})
+    name: Test (${{ matrix.emu }}, no-header-check=${{ matrix.no-header-check }})
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
         emu: [gbahawk, mesence]
+        no-header-check: [false, true]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -123,7 +127,7 @@ jobs:
         with:
           path: ~/.cache/zig/p
           key: zig-deps-${{ runner.os }}-${{ runner.arch }}-0.17.0-${{ hashFiles('build.zig.zon') }}
-      - run: zig build verify -Dno-recal=true
-      - run: zig build test -Dno-recal=true -Demu=${{ matrix.emu }} --test-timeout 1800s --summary all
+      - run: zig build verify -Dno-recal=true -Dno-header-check=${{ matrix.no-header-check }}
+      - run: zig build test -Dno-recal=true -Demu=${{ matrix.emu }} -Dno-header-check=${{ matrix.no-header-check }} --test-timeout 1800s --summary all
       - if: always()
         run: git diff --exit-code

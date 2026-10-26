@@ -15,6 +15,9 @@ pub fn build(b: *std.Build) void {
 
     const no_header_check = b.option(bool, "no-header-check", "boot carts with bad headers instead of showing CLEAN CART") orelse false;
     const sha_file = if (no_header_check) "bios_no_header_check.sha256" else "bios.sha256";
+    const bios_name = if (no_header_check) "gba_bios-no_header_check.bin" else "gba_bios.bin";
+    const bios_path = b.fmt("zig-out/bin/{s}", .{bios_name});
+    const elf_name = if (no_header_check) "bios-no_header_check.elf" else "bios.elf";
 
     // Build-time generators
     //   1. Sine LUT used by affine and boot screen
@@ -71,8 +74,8 @@ pub fn build(b: *std.Build) void {
 
     // The linker script fixes the BIOS layout and objcopy extracts the visible 16 KiB image.
     const bios = linkBin(b, zig, b.path("src/link.ld"), obj, "bios");
-    const inst = b.addInstallBinFile(bios.bin, "gba_bios.bin");
-    const elf_inst = b.addInstallBinFile(bios.elf, "bios.elf"); // the report tool reads symbols from it
+    const inst = b.addInstallBinFile(bios.bin, bios_name);
+    const elf_inst = b.addInstallBinFile(bios.elf, elf_name); // the report tool reads symbols from it
     b.getInstallStep().dependOn(&inst.step);
     b.getInstallStep().dependOn(&elf_inst.step);
 
@@ -95,14 +98,14 @@ pub fn build(b: *std.Build) void {
     }
 
     const verify = b.step("verify", "Build the BIOS and check its SHA-256");
-    const v = b.addSystemCommand(&.{ zig, "run", "tools/verify.zig", "--", "zig-out/bin/gba_bios.bin", sha_file });
+    const v = b.addSystemCommand(&.{ zig, "run", "tools/verify.zig", "--", bios_path, sha_file });
     v.setCwd(b.path("."));
     // Skip the recalibration gate when checking the committed hash.
     v.step.dependOn(&inst.step);
     verify.dependOn(&v.step);
 
     const report = b.step("report", "Build the BIOS and print the space report");
-    const r = b.addSystemCommand(&.{ zig, "run", "tools/space_report.zig" });
+    const r = b.addSystemCommand(&.{ zig, "run", "tools/space_report.zig", "--", b.fmt("zig-out/bin/{s}", .{elf_name}), bios_path });
     r.setCwd(b.path("."));
     r.step.dependOn(b.getInstallStep());
     report.dependOn(&r.step);
@@ -240,8 +243,8 @@ pub fn build(b: *std.Build) void {
         const layout_host = b.createModule(.{ .root_source_file = b.path("rom/layout.zig"), .target = b.graph.host, .optimize = .Debug });
 
         const test_opts = b.addOptions();
-        const bios_opt = b.option([]const u8, "bios", "Path to a BIOS binary to test (default: the built zig-out/bin/gba_bios.bin)");
-        test_opts.addOption([]const u8, "bios_path", bios_opt orelse "zig-out/bin/gba_bios.bin");
+        const bios_opt = b.option([]const u8, "bios", "Path to a BIOS binary to test (default: the built BIOS)");
+        test_opts.addOption([]const u8, "bios_path", bios_opt orelse bios_path);
         test_opts.addOption([]const u8, "emu", @tagName(emu_kind));
         test_opts.addOption(u64, "handoff_cycle", handoff_target);
         test_opts.addOption(u64, "mgba_handoff_cycle", mgba_handoff_target);

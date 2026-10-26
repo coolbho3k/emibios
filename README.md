@@ -41,6 +41,10 @@ way to do this on any retail hardware).
 
     zig build         # builds zig-out/bin/gba_bios.bin
 
+To boot cartridges with bad headers instead of showing CLEAN CART:
+
+    zig build -Dno-header-check=true # builds zig-out/bin/gba_bios-no_header_check.bin
+
 Unit tests assert behavior, side effects, and timing of many SWIs:
 
     zig build test    # runs tests against our BIOS

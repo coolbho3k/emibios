@@ -4,7 +4,6 @@ const std = @import("std");
 const Io = std.Io;
 
 const CAL = "src/calibration.s";
-const BIOS = "zig-out/bin/gba_bios.bin";
 const CYC_PER_ITER: i64 = 4; // FINAL_BURN_PAD step. FINAL_FINE burns one cycle per nop
 const FRAME_CYC: i64 = 228 * 1232; // one GBA frame (228 scanlines x 1232 cyc): the BOOT_FRAME_TRIM step
 const MAX_ITERS: u32 = 80;
@@ -55,8 +54,15 @@ fn readEqu(text: []const u8, name: []const u8) !i64 {
     return std.fmt.parseInt(i64, text[ns..ne], 10);
 }
 
-fn sha256Hex(gpa: std.mem.Allocator, io: Io) ![64]u8 {
-    const data = try Io.Dir.cwd().readFileAlloc(io, BIOS, gpa, .limited(1 << 20));
+fn biosPath(flags: []const []const u8) []const u8 {
+    for (flags) |flag| {
+        if (std.mem.eql(u8, flag, "-Dno-header-check=true")) return "zig-out/bin/gba_bios-no_header_check.bin";
+    }
+    return "zig-out/bin/gba_bios.bin";
+}
+
+fn sha256Hex(gpa: std.mem.Allocator, io: Io, flags: []const []const u8) ![64]u8 {
+    const data = try Io.Dir.cwd().readFileAlloc(io, biosPath(flags), gpa, .limited(1 << 20));
     var digest: [32]u8 = undefined;
     std.crypto.hash.sha2.Sha256.hash(data, &digest, .{});
     return std.fmt.bytesToHex(digest, .lower);
@@ -78,9 +84,9 @@ fn writeCal(gpa: std.mem.Allocator, io: Io, c: Cal) !void {
     try Io.Dir.cwd().writeFile(io, .{ .sub_path = CAL, .data = text });
 }
 
-fn writeSha(gpa: std.mem.Allocator, io: Io, sha: []const u8) !void {
-    const hex = try sha256Hex(gpa, io);
-    const text = try std.fmt.allocPrint(gpa, "{s}  gba_bios.bin\n", .{hex});
+fn writeSha(gpa: std.mem.Allocator, io: Io, sha: []const u8, flags: []const []const u8) !void {
+    const hex = try sha256Hex(gpa, io, flags);
+    const text = try std.fmt.allocPrint(gpa, "{s}  {s}\n", .{ hex, std.fs.path.basename(biosPath(flags)) });
     try Io.Dir.cwd().writeFile(io, .{ .sub_path = sha, .data = text });
 }
 
@@ -89,13 +95,13 @@ fn build(gpa: std.mem.Allocator, io: Io, zig: []const u8, flags: []const []const
     try run(gpa, io, try std.mem.concat(gpa, []const u8, &.{ &.{ zig, "build", "-Dno-recal=true" }, flags }));
 }
 
-fn probeCyc(gpa: std.mem.Allocator, io: Io, probe: []const u8, rom: []const u8) !u64 {
-    return parseCyc(try runCapture(gpa, io, &.{ probe, BIOS, rom }));
+fn probeCyc(gpa: std.mem.Allocator, io: Io, probe: []const u8, rom: []const u8, flags: []const []const u8) !u64 {
+    return parseCyc(try runCapture(gpa, io, &.{ probe, biosPath(flags), rom }));
 }
 
 fn measure(gpa: std.mem.Allocator, io: Io, zig: []const u8, probe: []const u8, rom: []const u8, flags: []const []const u8) !u64 {
     try build(gpa, io, zig, flags);
-    return probeCyc(gpa, io, probe, rom);
+    return probeCyc(gpa, io, probe, rom, flags);
 }
 
 // Both handoff cycles plus the target offset between them.
@@ -113,7 +119,7 @@ const Pair = struct {
 
 fn measureOffset(gpa: std.mem.Allocator, io: Io, zig: []const u8, pr: Pair, flags: []const []const u8) !i64 {
     const gh = try measure(gpa, io, zig, pr.gh, pr.rom, flags);
-    const mg = try probeCyc(gpa, io, pr.mg, pr.rom);
+    const mg = try probeCyc(gpa, io, pr.mg, pr.rom, flags);
     return @as(i64, @intCast(mg)) - @as(i64, @intCast(gh));
 }
 
@@ -137,7 +143,7 @@ fn anchorPhase(gpa: std.mem.Allocator, io: Io, zig: []const u8, pr: Pair, c: *Ca
 
 // Default build path: re-pin only if the built BIOS diverged from the committed hash.
 fn gate(gpa: std.mem.Allocator, io: Io, zig: []const u8, sha: []const u8, flags: []const []const u8) !void {
-    const got = try sha256Hex(gpa, io);
+    const got = try sha256Hex(gpa, io, flags);
     const raw: []const u8 = Io.Dir.cwd().readFileAlloc(io, sha, gpa, .limited(4096)) catch "";
     const want = std.mem.trim(u8, raw[0..@min(raw.len, 64)], " \t\r\n");
     if (std.mem.eql(u8, &got, want)) return; // deterministic match -> no GBAHawk, no recal
@@ -161,13 +167,13 @@ fn deep(gpa: std.mem.Allocator, io: Io, zig: []const u8, pr: Pair, flags: []cons
     // Every variant must land on both targets
     for (VARIANTS) |v| {
         const gh = try measure(gpa, io, zig, pr.gh, pr.rom, v.flags);
-        const mg = try probeCyc(gpa, io, pr.mg, pr.rom);
+        const mg = try probeCyc(gpa, io, pr.mg, pr.rom, v.flags);
         if (gh != pr.gh_target or mg != pr.mg_target) {
             try w.print("recal: {s}: GBAHawk {d} mGBA {d}\n", .{ v.sha, gh, mg });
             try w.flush();
             return err(io, "recal: a build variant missed a handoff target");
         }
-        try writeSha(gpa, io, v.sha);
+        try writeSha(gpa, io, v.sha, v.flags);
     }
     // Rebuild the requested variant last
     try build(gpa, io, zig, flags);
