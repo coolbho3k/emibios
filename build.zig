@@ -396,30 +396,36 @@ fn buildMgba(b: *std.Build, iface_mod: *std.Build.Module) ?Backend {
     const m = lib.root_module;
     m.addIncludePath(dep.path("include"));
     m.addIncludePath(dep.path("src"));
-    // The defines mGBA's CMake would detect on Linux and macOS.
+    const is_windows = b.graph.host.result.os.tag == .windows;
+    // The defines mGBA's CMake would detect on each platform.
     const base = [_][]const u8{
         "-std=gnu11",          "-w",            "-DM_CORE_GBA",   "-DMINIMAL_CORE=2",
-        "-DDISABLE_THREADING", "-DHAVE_STRDUP", "-DHAVE_STRNDUP", "-DHAVE_LOCALTIME_R",
-        "-DHAVE_LOCALE",
+        "-DDISABLE_THREADING", "-DHAVE_STRDUP", "-DHAVE_STRNDUP",
     };
-    const flags: []const []const u8 = if (b.graph.host.result.os.tag.isDarwin()) &(base ++ [_][]const u8{ "-DHAVE_XLOCALE", "-DHAVE_STRLCPY" }) else &base;
+    const posix = base ++ [_][]const u8{ "-DHAVE_LOCALTIME_R", "-DHAVE_LOCALE" };
+    const flags: []const []const u8 = if (is_windows) &base else if (b.graph.host.result.os.tag.isDarwin()) &(posix ++ [_][]const u8{ "-DHAVE_XLOCALE", "-DHAVE_STRLCPY" }) else &posix;
     m.addCSourceFiles(.{
         .root = dep.path("src"),
         .files = &.{
-            "arm/arm.c",               "arm/decoder-arm.c",               "arm/decoder-thumb.c",    "arm/decoder.c",
-            "arm/isa-arm.c",           "arm/isa-thumb.c",                 "gba/audio.c",            "gba/bios.c",
-            "gba/cart/ereader.c",      "gba/cart/gpio.c",                 "gba/cart/matrix.c",      "gba/cart/vfame.c",
-            "gba/dma.c",               "gba/gba.c",                       "gba/hle-bios.c",         "gba/input.c",
-            "gba/io.c",                "gba/memory.c",                    "gba/overrides.c",        "gba/renderers/cache-set.c",
-            "gba/savedata.c",          "gba/serialize.c",                 "gba/sio.c",              "gba/sio/gbp.c",
-            "gba/sio/joybus.c",        "gba/timer.c",                     "gba/video.c",            "gb/audio.c",
-            "core/bitmap-cache.c",     "core/cache-set.c",                "core/cheats.c",          "core/interface.c",
-            "core/log.c",              "core/map-cache.c",                "core/sync.c",            "core/tile-cache.c",
-            "core/timing.c",           "util/configuration.c",            "util/crc32.c",           "util/formatting.c",
-            "util/gbk-table.c",        "util/hash.c",                     "util/string.c",          "util/table.c",
-            "util/vfs.c",              "util/vfs/vfs-dirent.c",           "util/vfs/vfs-fd.c",      "util/vfs/vfs-mem.c",
-            "platform/posix/memory.c", "third-party/blip_buf/blip_buf.c", "third-party/inih/ini.c",
+            "arm/arm.c",              "arm/decoder-arm.c",    "arm/decoder-thumb.c", "arm/decoder.c",
+            "arm/isa-arm.c",          "arm/isa-thumb.c",      "gba/audio.c",         "gba/bios.c",
+            "gba/cart/ereader.c",     "gba/cart/gpio.c",      "gba/cart/matrix.c",   "gba/cart/vfame.c",
+            "gba/dma.c",              "gba/gba.c",            "gba/hle-bios.c",      "gba/input.c",
+            "gba/io.c",               "gba/memory.c",         "gba/overrides.c",     "gba/renderers/cache-set.c",
+            "gba/savedata.c",         "gba/serialize.c",      "gba/sio.c",           "gba/sio/gbp.c",
+            "gba/sio/joybus.c",       "gba/timer.c",          "gba/video.c",         "gb/audio.c",
+            "core/bitmap-cache.c",    "core/cache-set.c",     "core/cheats.c",       "core/interface.c",
+            "core/log.c",             "core/map-cache.c",     "core/sync.c",         "core/tile-cache.c",
+            "core/timing.c",          "util/configuration.c", "util/crc32.c",        "util/formatting.c",
+            "util/gbk-table.c",       "util/hash.c",          "util/string.c",       "util/table.c",
+            "util/vfs.c",             "util/vfs/vfs-fd.c",    "util/vfs/vfs-mem.c",  "third-party/blip_buf/blip_buf.c",
+            "third-party/inih/ini.c",
         },
+        .flags = flags,
+    });
+    m.addCSourceFiles(.{
+        .root = dep.path("src"),
+        .files = if (is_windows) &.{ "platform/windows/memory.c", "platform/windows/vfs-w32.c" } else &.{ "platform/posix/memory.c", "util/vfs/vfs-dirent.c" },
         .flags = flags,
     });
     m.addCSourceFile(.{ .file = b.path("tools/emu/mgba_export.c"), .flags = flags });
