@@ -57,7 +57,7 @@ Build a BIOS accuracy test ROM:
 ### Showcase
 
 emibios is used by a growing number of projects, from FPGA handhelds and software emulators to native game recompilations and
-GameCube ports that need to talk to GBA emulators via JoyBoot.
+native GameCube ports that need to talk to GBA emulators via JoyBoot.
 
 - [Game Bub](https://github.com/elipsitz/gamebub) - Open-source FPGA gaming handheld, since firmware v1.0.3
 - [Sly](https://github.com/ioncodes/sly) - Cross-platform, multi-system emulator and debugger written in Rust
