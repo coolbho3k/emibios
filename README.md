@@ -54,7 +54,7 @@ Build a BIOS accuracy test ROM:
 
     zig build rom                    # builds zig-out/bin/test_rom.gba
 
-## Projects using emibios
+### Showcase
 
 emibios is used by a growing number of projects, from FPGA handhelds and software emulators to native game recompilations and
 GameCube ports that need to talk to GBA emulators via JoyBoot.
