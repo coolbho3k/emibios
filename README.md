@@ -62,8 +62,8 @@ GameCube ports that need to talk to GBA emulators via JoyBoot.
 - [Game Bub](https://github.com/elipsitz/gamebub) - Open-source FPGA gaming handheld, since firmware v1.0.3
 - [Sly](https://github.com/ioncodes/sly) - Cross-platform, multi-system emulator and debugger written in Rust
 - [Boat of Daphnes](https://github.com/AgitationSkeleton/boat_of_daphnes) - Native PC port of The Legend of Zelda: The Wind Waker. Uses emibios with mGBA for JoyBoot functionality
-- **[GBARecompX](https://github.com/james2doyle/gbarecompx)** - Static recompilation framework for GBA games
-- **[Final Fantasy Tactics Advance Recomp](https://github.com/james2doyle/ffta-recomp)** - Native recompilation of Final Fantasy Tactics Advance
+- [GBARecompX](https://github.com/james2doyle/gbarecompx) - Static recompilation framework for GBA games
+- [Final Fantasy Tactics Advance Recomp](https://github.com/james2doyle/ffta-recomp) - Native recompilation of Final Fantasy Tactics Advance
 
 Using emibios in your project? Feel free to open a pull request to add it here!
 
