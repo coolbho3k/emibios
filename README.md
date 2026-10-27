@@ -1,5 +1,5 @@
 # emibios: a GBA BIOS replacement
-**Download latest: [gba_bios.bin | 0.2.0](https://github.com/coolbho3k/emibios/releases/download/0.2.0/gba_bios.bin)**
+**Download latest: [gba_bios.bin | 0.2.1](https://github.com/coolbho3k/emibios/releases/download/0.2.1/gba_bios.bin)**
 
 [![Build](https://github.com/coolbho3k/emibios/actions/workflows/ci.yml/badge.svg)](https://github.com/coolbho3k/emibios/actions/workflows/ci.yml)
 
