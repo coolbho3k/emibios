@@ -82,11 +82,13 @@ code, and beta versions of the retail BIOS.
 That said, emibios is not perfect yet. Although I have tried to fix all crashes I've found so far,
 some games will still desync in TAS playback, and I can't test every game and homebrew out there
 from start to finish. However, the goal is to eventually get as close in observable functionality
-to the retail BIOS as possible. Making every game playable without crashes or perceptible issues is
-the top priority, with the (aspirational) goal of completely deterministic output given the same
-sequence of inputs as the retail BIOS. So far, I've tested the entire 3000+ game commercial
-library (although not all from start to finish) as well as many homebrew and emulator test ROMs
-across several software emulators and FPGA devices.
+to the retail BIOS as possible.
+
+Making every game playable without crashes or perceptible issues is the top priority, with the
+(aspirational) goal of completely deterministic output given the same sequence of inputs as the
+retail BIOS. So far, I've tested the entire 3000+ game commercial library (although not all from
+start to finish) as well as many homebrew and emulator test ROMs across several software emulators
+and FPGA devices.
 
 Please help me test commercial games, particularly those that use the sound SWIs and those that
 exercise Multiboot functionality. Note that games that are historically difficult to emulate
