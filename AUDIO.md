@@ -3,16 +3,18 @@
 As far as I know, these are the only games in the commercial library that substantially use the
 BIOS audio driver implemented by emibios in [`src/swi/audio`](https://github.com/coolbho3k/emibios/tree/main/src/swi/audio).
 
-- Atari Anniversary Advance
-- Cyberdrive Zoids
-- Lizzie McGuire - On the Go!
-- Mail de Cute
-- Namco Museum 50th Anniversary
-- Phantasy Star Collection
-- Pocket Professor: KwikNotes Volume One
-- Rampage: Puzzle Attack
-- Saibara Rieko no Dendo Mahjong
-- X-Men: Reign of Apocalypse
+| Game | Developer | Publisher |
+|---|---|---|
+| Atari Anniversary Advance | Digital Eclipse | Infogrames |
+| Cyberdrive Zoids | NDcube | Tomy |
+| Lizzie McGuire: On the Go! | Digital Eclipse | Disney Interactive |
+| Mail de Cute | Mobile 21 | Konami |
+| Namco Museum 50th Anniversary | Digital Eclipse | Namco |
+| Phantasy Star Collection | Digital Eclipse | THQ / Sega |
+| Pocket Professor: KwikNotes Volume One | Synapse Software Corporation | Pocket Direct |
+| Rampage: Puzzle Attack | Ninai Games | Midway |
+| Saibara Rieko no Dendou Mahjong | Warashi | Media Rings |
+| X-Men: Reign of Apocalypse | Digital Eclipse | Activision |
 
 This applies to all regions and versions of these games, where there are multiple.
 
