@@ -40,7 +40,7 @@ way to do this on any retail hardware. I'd be very interested in trying it out.
 ### Building
 
 [Zig](https://ziglang.org) 0.17 is the toolchain and the only build prerequisite needed. The
-project should build on all platforms 
+project should build on all platforms that Zig supports.
 
     zig build                        # builds zig-out/bin/gba_bios.bin
 
