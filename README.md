@@ -3,10 +3,11 @@
 
 [![Build](https://github.com/coolbho3k/emibios/actions/workflows/ci.yml/badge.svg)](https://github.com/coolbho3k/emibios/actions/workflows/ci.yml)
 
-emibios is a research [Game Boy Advance](https://en.wikipedia.org/wiki/Game_Boy_Advance) BIOS replacement that aims to be as accurate as possible
-when running commercial games while being freely redistributable. It is not intended to contain,
-or use as reference, any proprietary code directly derived from the retail BIOS. Instead, we
-rely on observing and matching the behavior of the retail BIOS.
+emibios is a research [Game Boy Advance](https://en.wikipedia.org/wiki/Game_Boy_Advance) BIOS
+replacement that aims to be as accurate as possible when running commercial games while being
+freely redistributable. It is not intended to contain, or use as reference, any proprietary code
+directly derived from the retail BIOS. Instead, we rely on observing and matching the behavior of
+the retail BIOS.
 
 Originally based on [Cult-of-GBA BIOS](https://github.com/Cult-of-GBA/BIOS/) by fleroviux and
 DenSinH.
@@ -27,17 +28,19 @@ DenSinH.
 
 ### Running
 
-Download the [latest release](https://github.com/coolbho3k/emibios/releases/latest) and load it into your favorite GBA emulator!
+Download the [latest release](https://github.com/coolbho3k/emibios/releases/latest) and load it
+into your favorite GBA emulator or FPGA device!
 
 It takes the place of the official `gba_bios.bin`.
 
 emibios will probably also run on official silicon if you can manage to figure out how, but as far
-as I know, this is impossible (let me know if you own debug hardware that can do this or know of a
-way to do this on any retail hardware).
+as I know, this is impossible. Let me know if you own debug hardware that can do this or know of a
+way to do this on any retail hardware. I'd be very interested in trying it out.
 
 ### Building
 
-[Zig](https://ziglang.org) 0.17 is the toolchain and the only build prerequisite needed.
+[Zig](https://ziglang.org) 0.17 is the toolchain and the only build prerequisite needed. The
+project should build on all platforms 
 
     zig build                        # builds zig-out/bin/gba_bios.bin
 
@@ -59,7 +62,7 @@ Build a BIOS accuracy test ROM:
 emibios is used by a growing number of projects, from FPGA handhelds and software emulators to native game recompilations and
 native GameCube ports that need to talk to GBA emulators via JoyBoot.
 
-- [Game Bub](https://github.com/elipsitz/gamebub) - Open-source FPGA gaming handheld, since firmware v1.0.3
+- [Game Bub](https://github.com/elipsitz/gamebub) - Open-source FPGA gaming handheld, uses a modified version since firmware v1.0.3
 - [Sly](https://github.com/ioncodes/sly) - Cross-platform, multi-system emulator and debugger written in Rust
 - [Boat of Daphnes](https://github.com/AgitationSkeleton/boat_of_daphnes) - Native PC port of The Legend of Zelda: The Wind Waker. Uses emibios with mGBA for JoyBoot functionality
 - [GBARecompX](https://github.com/james2doyle/gbarecompx) - Static recompilation framework for GBA games
@@ -67,27 +70,38 @@ native GameCube ports that need to talk to GBA emulators via JoyBoot.
 
 Using emibios in your project? Feel free to open a pull request to add it here!
 
+### Accuracy
+
+I believe emibios is, as of writing, the most accurate GBA BIOS implementation available. This
+includes HLE implementations of BIOS functionality built into emulators. Of course, this excludes
+the retail BIOS itself, third-party implementations that substantially reuse the retail BIOS's
+code, and beta versions of the retail BIOS.
+
 ### Disclaimer
 
-emibios is not perfect yet. Although I have tried to fix all crashes I've found so far, many games
-will still desync in TAS playback, and I can't test every game and homebrew out there from start to
-finish. However, the goal is to eventually get as close in observable functionality to the retail BIOS
-as possible. This means fixing any crashes that are found and aiming for determinism given the same
-sequence of inputs in games as the retail BIOS.
+That said, emibios is not perfect yet. Although I have tried to fix all crashes I've found so far,
+some games will still desync in TAS playback, and I can't test every game and homebrew out there
+from start to finish. However, the goal is to eventually get as close in observable functionality
+to the retail BIOS as possible. Making every game playable without crashes or perceptible issues is
+the top priority, with the (aspirational) goal of completely deterministic output given the same
+sequence of inputs as the retail BIOS. So far, I've tested the entire 3000+ game commercial
+library (although not all from start to finish) as well as many homebrew and emulator test ROMs
+across several software emulators and FPGA devices.
 
 Please help me test commercial games, particularly those that use the sound SWIs and those that
-exercise Multiboot functionality. Note that games that are historically difficult to emulate accurately
-are not necessarily difficult to get running on an open BIOS replacement, and vice versa.
+exercise Multiboot functionality. Note that games that are historically difficult to emulate
+accurately are not necessarily difficult to get running on an open BIOS replacement, and vice
+versa.
 
-Some of the SWI code seems unconventional or inefficient. Most of the time, this was a result of
-efforts to match original timing, which often requires tricks like padding with `nop`s (among many
-others).
+Some of the SWI code may read as unconventional or inefficient. Most of the time, this was a
+result of efforts to match original timing, which often requires tricks like padding with `nop`s
+(among many others).
 
 ### AI Disclosure
 
 LLMs were used to propose and run the thousands of experiments required for this project. They also
-wrote some assembly and Zig. Outputs were fully attended to and checked by me. Great care was taken to
-firewall them against ingesting proprietary code or binaries into their context.
+wrote some assembly and Zig. Outputs were fully attended to and checked by me. Great care was taken
+to firewall them against ingesting proprietary code or binaries into their context.
 
 ### Credits
 
@@ -105,3 +119,6 @@ firewall them against ingesting proprietary code or binaries into their context.
 ### License
 
 The BIOS itself is LGPL-3.0-or-later by default. Tests and some tooling are MIT.
+
+**I want your project to use emibios!** If you have any questions or need help integrating it,
+please let me know.
