@@ -34,6 +34,7 @@
         "tools",
         "bios.sha256",
         "bios_no_header_check.sha256",
+        "AUDIO.md",
         "README.md",
         "boot.webp",
         "multiboot.webp",
