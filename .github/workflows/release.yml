@@ -84,7 +84,7 @@ jobs:
         shell: bash
         run: |
           printf '%s' "$RELEASE_NOTES" > "$RUNNER_TEMP/release-notes.md"
-      - name: Tag and publish verified binaries
+      - name: Package and publish verified binaries
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
@@ -99,6 +99,21 @@ jobs:
           test "$(wc -c < gba_bios.bin)" -eq 16384
           test "$(wc -c < gba_bios-no_header_check.bin)" -eq 16384
           test "$(wc -c < test_rom.gba)" -eq 1048576
+          binaries=(gba_bios.bin gba_bios-no_header_check.bin test_rom.gba)
+          package_dir="$RUNNER_TEMP/emibios-artifacts"
+          archive="$package_dir.tar.gz"
+          mkdir "$package_dir"
+          cp "${binaries[@]}" "$package_dir/"
+          cat > "$package_dir/build.zig.zon" <<EOF
+          .{
+              .name = .emibios_artifacts,
+              .version = "$RELEASE_VERSION",
+              .fingerprint = 0x14b80437d4a6a412,
+              .paths = .{""},
+          }
+          EOF
+          tar -czf "$archive" -C "$RUNNER_TEMP" emibios-artifacts
+
           refs=$(gh api "repos/$GH_REPO/git/matching-refs/tags/$RELEASE_VERSION")
           test "$(jq --arg ref "refs/tags/$RELEASE_VERSION" '[.[] | select(.ref == $ref)] | length' <<< "$refs")" -eq 0
           prerelease=()
@@ -106,7 +121,7 @@ jobs:
           if [[ "$core_version" == *-* ]]; then prerelease=(--prerelease); fi
           gh api --method POST "repos/$GH_REPO/git/refs" \
             -f "ref=refs/tags/$RELEASE_VERSION" -f "sha=$SOURCE_SHA"
-          gh release create "$RELEASE_VERSION" gba_bios.bin gba_bios-no_header_check.bin test_rom.gba \
+          gh release create "$RELEASE_VERSION" "${binaries[@]}" "$archive" \
             --verify-tag --title "$RELEASE_VERSION" \
             --notes-file "$RUNNER_TEMP/release-notes.md" --draft "${prerelease[@]}"
           gh release edit "$RELEASE_VERSION" --draft=false
